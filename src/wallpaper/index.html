@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WallFlow Wallpaper</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="stage">
+    <div class="layer" id="layerA"><div class="media"></div></div>
+    <div class="layer" id="layerB"><div class="media"></div></div>
+    <div class="overlay-dim"></div>
+    <div class="overlay-vignette"></div>
+    <canvas id="particles"></canvas>
+    <div id="companion" aria-hidden="true"></div>
+    <div id="clock">
+      <div class="time"></div>
+      <div class="date"></div>
+    </div>
+  </div>
+  <script src="companion.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
