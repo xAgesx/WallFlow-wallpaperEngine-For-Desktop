@@ -28,6 +28,15 @@ library, a clock overlay, and a little companion that naps on your screen.
 - 🔁 **Playlist rotation** - let wallpapers auto-swap on a timer, with optional shuffle.
 - 🖥️ **Lives in the tray** - start with Windows, stop or resume anytime, and close the window without losing your wallpaper.
 
+## ⚠️ Content disclaimer
+
+WallFlow pulls wallpapers from third-party sites (Wallhaven, Konachan, booru galleries, GIF boards and more). Some of these sources allow **mature or explicit (NSFW) content**.
+
+- NSFW mode is **off by default** and normal browsing filters to safe content, but no filter is perfect.
+- If you turn NSFW mode on, you confirm that you are of legal age to view such material.
+- You are responsible for what appears on your screen, especially in shared spaces or while recording and streaming.
+- All wallpapers are served by the third-party sources themselves. The WallFlow developers have no control over them and cannot be held responsible for their content.
+
 ## 📸 Screenshots
 
 | The library |
