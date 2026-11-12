@@ -1,64 +1,56 @@
-# WallFlow
+<div align="center">
 
-A lightweight **animated wallpaper engine for Windows desktop**, built with Electron. Wallpaper renders *behind* your desktop icons as a live layer, with a library browser, playlist rotation, and an optional animated companion pet.
+# 🌊 WallFlow
 
-> Status: v1.0.0 — MIT licensed.
+### Turn your desktop into a living scene.
 
-## Features
+Animated wallpapers that play **behind your desktop icons** — with a built-in
+library, a clock overlay, and a little companion that naps on your screen.
 
-- **Live wallpapers behind your desktop icons** — the wallpaper window is attached to the desktop (WorkerW), not drawn on top of it.
-- **Wallpaper library** — search and browse wallpapers from many sources in one place:
-  - Wallhaven, Pexels, Unsplash, Pixabay, Wikimedia, NASA
-  - Art Institute of Chicago, Cleveland Museum, The Met
-  - Motion videos, animated GIFs, Tenor
-  - Anime: Anime, Konachan
-- **Playlist rotation** — auto-rotate wallpapers on an interval, with shuffle.
-- **Companion pet** — an animated cat, dog, or blob that reacts on your desktop (cursor tracking, yawns, zzz's…).
-- **Overlays** — clock/date overlay, dim & vignette, particle effects, parallax on cursor movement.
-- **Tray app** — lives in the system tray; stop/resume the wallpaper, start with Windows, minimize-on-start.
-- **API keys optional** — some sources (Pexels, Unsplash, Pixabay, Tenor, Wallhaven) work better with a free API key, configurable in Settings.
+![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-0078D6?style=for-the-badge&logo=windows11&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
+![Made with Electron](https://img.shields.io/badge/Made%20with-Electron-47848F?style=for-the-badge&logo=electron&logoColor=white)
 
-## Requirements
+**[⬇️ Download WallFlow](https://github.com/xAgesx/WallFlow-wallpaperEngine-For-Desktop/releases)**
 
-- **Windows** (uses PowerShell + Win32 APIs to attach the wallpaper to the desktop)
-- [Node.js](https://nodejs.org) (LTS recommended) with npm
+![WallFlow desktop](docs/wallpaper.png)
 
-## Getting started
+</div>
 
-```bash
-git clone https://github.com/xAgesx/WallFlow-wallpaperEngine-For-Desktop.git
-cd WallFlow-wallpaperEngine-For-Desktop
-npm install
-npm start
-```
+---
 
-## Usage
+## ✨ What can it do?
 
-- Open the **Library** window, search or pick a source, then click a wallpaper to apply it.
-- Right-click the tray icon to stop/resume the wallpaper or exit.
-- **Settings** (in the Library window) controls animation, look, clock overlay, companion, playlist rotation, API keys, source visibility, and general behavior.
+- 🎬 **Wallpapers that move** — GIFs, videos and animated scenes playing live behind your icons (which stay fully clickable, exactly as they should).
+- 🔎 **One search, every source** — Wallhaven, Pexels, Unsplash, Pixabay, NASA, museum collections, anime galleries and GIF boards, all in one library.
+- 🎨 **Make it yours** — dim the image, add a vignette, show a clock & date, mouse parallax, floating particle effects.
+- 🐾 **A desktop companion** — pick a cat, dog or blob. It sleeps, yawns, stretches and reacts as you move your mouse.
+- 🔁 **Playlist rotation** — let wallpapers auto-swap on a timer, with optional shuffle.
+- 🖥️ **Lives in the tray** — start with Windows, stop or resume anytime, and close the window without losing your wallpaper.
 
-## Project structure
+## 📸 Screenshots
 
-```
-src/
-  main/       Electron main process: window/tray management, wallpaper engine,
-              source APIs, settings store, PowerShell helpers (attach, sensors, autostart)
-  library/    Library/settings UI (HTML/CSS/JS)
-  wallpaper/  Wallpaper renderer: media layers, overlays, particles,
-              clock, companion pet
-  preload.js  IPC bridge between renderer and main process
-tools/        Dev utilities (icon generation, source checker)
-assets/       App icon
-```
+| The library |
+| :---: |
+| ![The WallFlow library](docs/library.png) |
 
-## Scripts
+Search, filter and preview wallpapers from every source in one place — then click to apply.
 
-| Command | Description |
+## ⬇️ Download & install
+
+1. Grab the latest build from the **[Releases page](https://github.com/xAgesx/WallFlow-wallpaperEngine-For-Desktop/releases)**.
+2. Run it. That's it — no installer, no setup.
+
+> 🚧 *The first executable build is being prepared right now — check back soon!*
+
+## 🛠 Tech stack
+
+| | |
 | --- | --- |
-| `npm start` | Run the app with Electron |
-| `npm run gen-icon` | Regenerate `assets/icon.png` |
+| **Electron** | the app shell (desktop window, tray, wallpaper rendering) |
+| **JavaScript · HTML · CSS** | hand-crafted UI — zero frameworks, lightweight by design |
+| **PowerShell + Win32 APIs** | the trick that pins the wallpaper *behind* your desktop icons |
 
-## License
+## 📄 License
 
-[MIT](LICENSE)
+Released under the [MIT License](LICENSE) — free to use, modify and share.
