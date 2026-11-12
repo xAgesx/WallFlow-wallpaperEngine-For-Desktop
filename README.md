@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="public/WallFlow-icon.svg" width="110" alt="WallFlow logo">
+
 # 🌊 WallFlow
 
 ### Turn your desktop into a living scene.
