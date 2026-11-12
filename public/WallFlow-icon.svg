@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="background" x1="70" y1="30" x2="442" y2="482" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#252A40"/>
+      <stop offset="1" stop-color="#111522"/>
+    </linearGradient>
+    <linearGradient id="screenSky" x1="145" y1="112" x2="370" y2="375" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#BBAAFF"/>
+      <stop offset="1" stop-color="#7862D7"/>
+    </linearGradient>
+    <linearGradient id="frontMountain" x1="160" y1="222" x2="340" y2="366" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F3EEFF"/>
+      <stop offset="1" stop-color="#B5A2F1"/>
+    </linearGradient>
+    <linearGradient id="gearFill" x1="374" y1="77" x2="439" y2="143" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0EAFF"/>
+      <stop offset="1" stop-color="#B7A5F5"/>
+    </linearGradient>
+    <clipPath id="screenClip">
+      <rect x="108" y="111" width="296" height="260" rx="28"/>
+    </clipPath>
+  </defs>
+
+  <!-- App tile -->
+  <rect width="512" height="512" rx="112" fill="url(#background)"/>
+  <rect x="1" y="1" width="510" height="510" rx="111" stroke="#FFFFFF" stroke-opacity=".07" stroke-width="2"/>
+
+  <!-- Monitor body -->
+  <rect x="82" y="85" width="348" height="314" rx="46" fill="#394158"/>
+  <rect x="92" y="95" width="328" height="294" rx="38" fill="#171D2B"/>
+
+  <!-- Wallpaper artwork -->
+  <g clip-path="url(#screenClip)">
+    <rect x="108" y="111" width="296" height="260" fill="url(#screenSky)"/>
+    <circle cx="326" cy="171" r="25" fill="#FFF0CC"/>
+    <path d="M83 294L171 210C183 198 199 198 211 210L269 267L306 232C319 220 335 221 347 234L429 316V389H83Z" fill="#62549F"/>
+    <path d="M88 322L190 231C202 220 218 220 230 232L285 283L326 249C339 238 355 239 367 251L428 310V389H88Z" fill="url(#frontMountain)"/>
+    <path d="M93 333C151 306 195 313 241 338C290 364 343 350 420 316V390H93Z" fill="#594A99"/>
+    <path d="M93 354C150 334 195 346 240 364C293 385 350 368 420 344V390H93Z" fill="#352F63"/>
+  </g>
+
+  <!-- Clean frame highlight -->
+  <rect x="108" y="111" width="296" height="260" rx="28" fill="none" stroke="#FFFFFF" stroke-opacity=".18" stroke-width="2"/>
+
+  <!-- Monitor stand -->
+  <path d="M234 399V420H278V399" fill="none" stroke="#A99AF0" stroke-width="14" stroke-linecap="round"/>
+  <path d="M205 430H307" fill="none" stroke="#DCD5FF" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- Settings gear: simplified, evenly spaced teeth and a clear center -->
+  <circle cx="399" cy="113" r="38" fill="#111522" stroke="#394158" stroke-width="5"/>
+  <path d="M393 84H405L408 92
+           C411 93 414 94 416 96L424 93L432 103L427 110
+           C428 113 428 116 427 119L432 126L424 136L416 132
+           C414 134 411 135 408 136L405 144H393L390 136
+           C387 135 384 134 382 132L374 136L366 126L371 119
+           C370 116 370 113 371 110L366 103L374 93L382 96
+           C384 94 387 93 390 92Z"
+        fill="url(#gearFill)" transform="translate(0 0)"/>
+  <circle cx="399" cy="114" r="10" fill="#6553B5"/>
+</svg>

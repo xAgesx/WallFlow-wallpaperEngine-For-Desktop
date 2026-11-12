@@ -21,6 +21,7 @@ function createLibraryWindow() {
     backgroundColor: '#0a0d13',
     autoHideMenuBar: true,
     title: 'WallFlow',
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
       contextIsolation: true,
