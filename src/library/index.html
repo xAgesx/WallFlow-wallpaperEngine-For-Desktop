@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: http: data: blob:; img-src 'self' https: http: data: blob: file:; media-src 'self' https: http: blob: file:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https: http:;" />
+  <title>WallFlow</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-theme="dark">
+  <div id="titlebar">
+    <div class="brand">
+      <svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#a78bfa"/>
+        </linearGradient></defs>
+        <circle cx="32" cy="32" r="30" fill="url(#lg)"/>
+        <circle cx="32" cy="32" r="19" fill="none" stroke="#fff" stroke-width="4" opacity=".9"/>
+        <circle cx="32" cy="32" r="7" fill="#fff"/>
+      </svg>
+      <span>WallFlow</span>
+    </div>
+    <div id="now-playing" class="now-playing" hidden></div>
+    <div class="win-controls">
+      <button id="btn-min" class="win-btn" title="Minimize to tray">
+        <svg width="10" height="10" viewBox="0 0 10 10"><rect y="4.5" width="10" height="1" fill="currentColor"/></svg>
+      </button>
+      <button id="btn-close" class="win-btn close" title="Close to tray">
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0 L10 10 M10 0 L0 10" stroke="currentColor" stroke-width="1.2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="app">
+    <aside id="sidebar">
+      <nav id="nav-main">
+        <button class="nav-item active" data-view="foryou">
+          <svg viewBox="0 0 24 24"><path d="M12 3l2.2 5.2L19.5 9l-4 3.7 1.1 5.5L12 15.4 7.4 18.2l1.1-5.5-4-3.7 5.3-.8z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          For You
+        </button>
+        <button class="nav-item" data-view="all">
+          <svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+          All Wallpapers <span class="count" id="count-all"></span>
+        </button>
+        <button class="nav-item" data-view="favorites">
+          <svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          Favorites <span class="count" id="count-fav"></span>
+        </button>
+        <button class="nav-item" data-view="local">
+          <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 15l4-4 4 4 3-3 5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          My Wallpapers <span class="count" id="count-lib"></span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4L6 18M18 18l-1.6-1.6M7.6 7.6L6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          Settings
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="btn-upload" class="ghost-btn">
+          <svg viewBox="0 0 24 24"><path d="M12 16V5M12 5l-4 4M12 5l4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Upload files
+        </button>
+        <button id="btn-addurl" class="ghost-btn">
+          <svg viewBox="0 0 24 24"><path d="M10 13a4 4 0 0 0 6 .5l2-2a4 4 0 0 0-5.7-5.7l-1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M14 11a4 4 0 0 0-6-.5l-2 2A4 4 0 0 0 11.7 18l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Add from URL
+        </button>
+      </div>
+    </aside>
+
+    <main id="content">
+      <header id="topbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" class="search-ico"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <input id="search" type="search" placeholder="Search wallpapers…" autocomplete="off" spellcheck="false" />
+          <button id="search-clear" title="Clear" hidden>×</button>
+        </div>
+        <div class="filters">
+          <select id="f-source" title="Source">
+            <option value="all">All sources</option>
+          </select>
+          <select id="f-orientation" title="Orientation">
+            <option value="all">Any shape</option>
+            <option value="landscape">Landscape</option>
+            <option value="portrait">Portrait</option>
+          </select>
+          <select id="f-category" title="Content"></select>
+          <select id="f-minwidth" title="Minimum width">
+            <option value="0">Any size</option>
+            <option value="1280">1280px+</option>
+            <option value="1920">1920px+</option>
+            <option value="2560">2560px+</option>
+            <option value="3840">4K</option>
+          </select>
+          <select id="f-sort" title="Sort"></select>
+          <label class="nsfw-chip anim-chip" id="f-animated-wrap" title="Only wallpapers with real motion (video / GIF) — still images are hidden">
+            <input type="checkbox" id="f-animated" />
+            <span>Animated</span>
+          </label>
+          <label class="nsfw-chip" title="Include NSFW results (Wallhaven API key recommended)">
+            <input type="checkbox" id="f-nsfw" />
+            <span>NSFW</span>
+          </label>
+          <button id="btn-refresh" class="icon-btn" title="Refresh">
+            <svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="view-banner" hidden></div>
+
+      <section id="grid-scroll">
+        <div id="grid"></div>
+        <div id="state-msg" hidden></div>
+        <div id="sentinel"></div>
+        <div id="loader" hidden><div class="spinner"></div></div>
+      </section>
+
+      <section id="settings-view" hidden>
+        <div class="settings-inner">
+          <h1>Settings</h1>
+
+          <div class="set-group">
+            <h2>Animation</h2>
+            <div class="set-row">
+              <label>Effect <span class="hint-inline">(motion FX for still images only)</span></label>
+              <select data-setting="effect">
+                <option value="kenburns">Ken Burns drift</option>
+                <option value="pan">Slow pan</option>
+                <option value="zoom">Breathing zoom</option>
+                <option value="drift">Wander</option>
+                <option value="tilt">Mouse parallax tilt</option>
+                <option value="none">Still</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Speed <span class="val" data-for="speed"></span></label>
+              <input type="range" data-setting="speed" min="0.2" max="3" step="0.1" />
+            </div>
+            <div class="set-row">
+              <label>Zoom amount <span class="val" data-for="zoom"></span></label>
+              <input type="range" data-setting="zoom" min="2" max="30" step="1" />
+            </div>
+            <div class="set-row">
+              <label>Crossfade <span class="val" data-for="transition"></span></label>
+              <input type="range" data-setting="transition" min="0" max="3000" step="100" />
+            </div>
+            <div class="set-row">
+              <label>Parallax follow cursor</label>
+              <label class="switch"><input type="checkbox" data-setting="parallax" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Parallax depth <span class="val" data-for="parallaxDepth"></span></label>
+              <input type="range" data-setting="parallaxDepth" min="2" max="40" step="1" />
+            </div>
+          </div>
+
+          <div class="set-group">
+            <h2>Look</h2>
+            <div class="set-row">
+              <label>Dim overlay <span class="val" data-for="dim"></span></label>
+              <input type="range" data-setting="dim" min="0" max="70" step="1" />
+            </div>
+            <div class="set-row">
+              <label>Brightness <span class="val" data-for="brightness"></span></label>
+              <input type="range" data-setting="brightness" min="40" max="150" step="1" />
+            </div>
+            <div class="set-row">
+              <label>Saturation <span class="val" data-for="saturation"></span></label>
+              <input type="range" data-setting="saturation" min="0" max="200" step="1" />
+            </div>
+            <div class="set-row">
+              <label>Vignette</label>
+              <label class="switch"><input type="checkbox" data-setting="vignette" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Particles</label>
+              <label class="switch"><input type="checkbox" data-setting="particles" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Particle count <span class="val" data-for="particleCount"></span></label>
+              <input type="range" data-setting="particleCount" min="0" max="120" step="4" />
+            </div>
+          </div>
+
+          <div class="set-group">
+            <h2>Clock overlay</h2>
+            <div class="set-row">
+              <label>Show clock</label>
+              <label class="switch"><input type="checkbox" data-setting="clock" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Format</label>
+              <select data-setting="clockFormat">
+                <option value="24">24-hour</option>
+                <option value="12">12-hour</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Position</label>
+              <select data-setting="clockPosition">
+                <option value="top-left">Top left</option>
+                <option value="top-center">Top center</option>
+                <option value="top-right">Top right</option>
+                <option value="middle-left">Left</option>
+                <option value="center">Center</option>
+                <option value="middle-right">Right</option>
+                <option value="bottom-left">Bottom left</option>
+                <option value="bottom-center">Bottom center</option>
+                <option value="bottom-right">Bottom right</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Offset X <span class="val" data-for="clockOffsetX"></span></label>
+              <input type="range" data-setting="clockOffsetX" min="-400" max="400" step="5" />
+            </div>
+            <div class="set-row">
+              <label>Offset Y <span class="val" data-for="clockOffsetY"></span></label>
+              <input type="range" data-setting="clockOffsetY" min="-400" max="400" step="5" />
+            </div>
+            <div class="set-row">
+              <label>Opacity <span class="val" data-for="clockOpacity"></span></label>
+              <input type="range" data-setting="clockOpacity" min="10" max="100" step="5" />
+            </div>
+            <div class="set-row">
+              <label>Size <span class="val" data-for="clockSize"></span></label>
+              <input type="range" data-setting="clockSize" min="36" max="160" step="4" />
+            </div>
+            <div class="set-row">
+              <label>Show seconds</label>
+              <label class="switch"><input type="checkbox" data-setting="clockSeconds" /><span></span></label>
+            </div>
+          </div>
+
+          <div class="set-group">
+            <h2>Companion</h2>
+            <div class="set-row">
+              <label>Show companion <span class="hint-inline">(reacts to cursor, clicks, brightness &amp; volume)</span></label>
+              <label class="switch"><input type="checkbox" data-setting="companion" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Character</label>
+              <select data-setting="companionChar">
+                <option value="cat">Cat</option>
+                <option value="dog">Dog</option>
+                <option value="blob">Slime blob</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Size <span class="val" data-for="companionSize"></span></label>
+              <input type="range" data-setting="companionSize" min="80" max="360" step="10" />
+            </div>
+            <div class="set-row">
+              <label>Position</label>
+              <select data-setting="companionPosition">
+                <option value="top-left">Top left</option>
+                <option value="top-center">Top center</option>
+                <option value="top-right">Top right</option>
+                <option value="middle-left">Left</option>
+                <option value="center">Center</option>
+                <option value="middle-right">Right</option>
+                <option value="bottom-left">Bottom left</option>
+                <option value="bottom-center">Bottom center</option>
+                <option value="bottom-right">Bottom right</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Offset X <span class="val" data-for="companionOffsetX"></span></label>
+              <input type="range" data-setting="companionOffsetX" min="-400" max="400" step="5" />
+            </div>
+            <div class="set-row">
+              <label>Offset Y <span class="val" data-for="companionOffsetY"></span></label>
+              <input type="range" data-setting="companionOffsetY" min="-400" max="400" step="5" />
+            </div>
+            <div class="set-row">
+              <label>Opacity <span class="val" data-for="companionOpacity"></span></label>
+              <input type="range" data-setting="companionOpacity" min="10" max="100" step="5" />
+            </div>
+          </div>
+
+          <div class="set-group">
+            <h2>Playlist rotation</h2>
+            <div class="set-row">
+              <label>Rotate wallpapers</label>
+              <label class="switch"><input type="checkbox" data-setting="playlist" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Every</label>
+              <select data-setting="playlistInterval">
+                <option value="60">1 minute</option>
+                <option value="300">5 minutes</option>
+                <option value="600">10 minutes</option>
+                <option value="1800">30 minutes</option>
+                <option value="3600">1 hour</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Rotate from</label>
+              <select data-setting="playlistSource">
+                <option value="library">My wallpapers</option>
+                <option value="favorites">Favorites</option>
+                <option value="all">Everything</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Shuffle</label>
+              <label class="switch"><input type="checkbox" data-setting="shuffle" /><span></span></label>
+            </div>
+          </div>
+
+          <div class="set-group">
+            <h2>Connections &amp; content</h2>
+            <div class="set-row">
+              <label>Animated wallpapers only<br /><span class="hint-inline">Hide still images — only videos &amp; GIFs with real motion appear</span></label>
+              <label class="switch"><input type="checkbox" data-setting="animatedOnly" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>NSFW mode<br /><span class="hint-inline">Removes every content limit while on — explicit results included</span></label>
+              <label class="switch"><input type="checkbox" data-setting="nsfwMode" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Wallhaven API key<br /><span class="hint-inline">Free at wallhaven.cc — required for NSFW search</span></label>
+              <input type="text" data-setting="wallhavenKey" placeholder="Paste API key…" style="min-width:220px" />
+            </div>
+            <div class="set-row">
+              <label>Pexels API key<br /><span class="hint-inline">Unlocks Pexels photos &amp; video clips</span></label>
+              <input type="text" data-setting="pexelsKey" placeholder="Paste API key…" style="min-width:220px" />
+            </div>
+            <div class="set-row">
+              <label>Unsplash API key<br /><span class="hint-inline">Unlocks Unsplash photography</span></label>
+              <input type="text" data-setting="unsplashKey" placeholder="Paste API key…" style="min-width:220px" />
+            </div>
+            <div class="set-row">
+              <label>Pixabay API key<br /><span class="hint-inline">Unlocks Pixabay photos &amp; clips</span></label>
+              <input type="text" data-setting="pixabayKey" placeholder="Paste API key…" style="min-width:220px" />
+            </div>
+            <div class="set-row">
+              <label>Tenor API key<br /><span class="hint-inline">Unlocks animated GIF wallpapers</span></label>
+              <input type="text" data-setting="tenorKey" placeholder="Paste API key…" style="min-width:220px" />
+            </div>
+          </div>
+
+          <div class="set-group">
+            <h2>Sources</h2>
+            <div class="set-row">
+              <label>Included sources<br /><span class="hint-inline">Switch off any source you don't want searched — changes apply immediately</span></label>
+            </div>
+            <div id="source-switches"></div>
+          </div>
+
+          <div class="set-group">
+            <h2>General</h2>
+            <div class="set-row">
+              <label>Start with Windows</label>
+              <label class="switch"><input type="checkbox" data-setting="startWithWindows" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Keep running when window closes</label>
+              <label class="switch"><input type="checkbox" data-setting="trayOnClose" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Mute video wallpapers</label>
+              <label class="switch"><input type="checkbox" data-setting="videoMuted" /><span></span></label>
+            </div>
+            <div class="set-row">
+              <label>Start minimized</label>
+              <label class="switch"><input type="checkbox" data-setting="minimizeOnStart" /><span></span></label>
+            </div>
+          </div>
+
+          <div class="set-group">
+            <h2>Appearance</h2>
+            <div class="set-row">
+              <label>Theme</label>
+              <select data-setting="theme">
+                <option value="dark">Midnight</option>
+                <option value="light">Daylight</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Accent color</label>
+              <input type="color" data-setting="accent" />
+            </div>
+            <div class="set-row">
+              <label>Grid density</label>
+              <select data-setting="density">
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
+            <div class="set-row danger">
+              <label>Stop wallpaper</label>
+              <button id="btn-stop-wallpaper" class="danger-btn">Stop</button>
+            </div>
+          </div>
+
+          <div class="set-footer">WallFlow · local-first · your downloads stay on this machine</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="preview-bar" hidden>
+    <div class="pb-info">
+      <span class="pb-dot"></span>
+      <span id="pb-text">Previewing…</span>
+    </div>
+    <div class="pb-actions">
+      <button id="pb-discard" class="ghost-btn subtle">Discard</button>
+      <button id="pb-keep" class="primary-btn">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 4v10M12 4l-4 4M12 4l4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17v2h14v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Download &amp; keep
+      </button>
+    </div>
+  </div>
+
+  <div id="modal" hidden>
+    <div class="modal-card">
+      <h3 id="modal-title">Add from URL</h3>
+      <p id="modal-hint">Paste a direct image or video URL</p>
+      <input id="modal-input" type="url" placeholder="https://example.com/wallpaper.jpg" />
+      <div class="modal-actions">
+        <button id="modal-cancel" class="ghost-btn subtle">Cancel</button>
+        <button id="modal-ok" class="primary-btn">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
