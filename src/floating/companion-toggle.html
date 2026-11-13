@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>WallFlow Companion Toggle</title>
+  <style>
+    :root {
+      --accent: #8b9cff;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    #btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 13, 19, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      color: rgba(255, 255, 255, 0.55);
+      transition: transform 0.15s ease, background 0.2s ease,
+        border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+    }
+
+    #btn:hover {
+      transform: scale(1.07);
+      border-color: rgba(255, 255, 255, 0.34);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    #btn:active {
+      transform: scale(0.95);
+    }
+
+    /* companion enabled: accent pill, dark icon, soft glow */
+    body[data-on="true"] #btn {
+      background: var(--accent);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #0d111a;
+      box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+
+    body[data-on="true"] #btn:hover {
+      background: color-mix(in srgb, var(--accent) 85%, #fff);
+    }
+
+    #btn svg {
+      display: block;
+    }
+  </style>
+</head>
+<body data-on="false">
+  <div id="btn" role="button" aria-pressed="false" aria-label="Toggle desktop companion">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <ellipse cx="12" cy="15.6" rx="5.3" ry="4.4" />
+      <ellipse cx="5.4" cy="10.6" rx="2.6" ry="3.1" transform="rotate(-18 5.4 10.6)" />
+      <ellipse cx="18.6" cy="10.6" rx="2.6" ry="3.1" transform="rotate(18 18.6 10.6)" />
+      <ellipse cx="9.4" cy="6.2" rx="2.5" ry="3.2" transform="rotate(-6 9.4 6.2)" />
+      <ellipse cx="14.6" cy="6.2" rx="2.5" ry="3.2" transform="rotate(6 14.6 6.2)" />
+    </svg>
+  </div>
+
+  <script>
+    const btn = document.getElementById('btn');
+    let enabled = false;
+
+    function applyAccent(s) {
+      document.documentElement.style.setProperty(
+        '--accent',
+        (s && s.accent) || '#8b9cff'
+      );
+    }
+
+    function render(on) {
+      enabled = !!on;
+      document.body.dataset.on = String(enabled);
+      btn.setAttribute('aria-pressed', String(enabled));
+      btn.title = enabled
+        ? 'Companion is on - click to hide it'
+        : 'Companion is off - click to show it';
+    }
+
+    async function toggle() {
+      const next = await window.wallflow.invoke('settings:set', {
+        companion: !enabled,
+      });
+      render(next.companion);
+    }
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggle();
+    });
+
+    // stay in sync when the library settings or tray change the companion
+    window.wallflow.on('wallpaper:settings', (s) => {
+      applyAccent(s);
+      render(s.companion);
+    });
+    window.wallflow.invoke('settings:get').then((s) => {
+      applyAccent(s);
+      render(s.companion);
+    });
+  </script>
+</body>
+</html>

@@ -58,6 +58,7 @@ function runParentScript(hwnd, bounds, stable) {
 class WallpaperEngine {
   constructor() {
     this.windows = new Map(); // displayId -> BrowserWindow
+    this.toggles = new Map(); // displayId -> companion toggle window
     this.current = null;
     this.previewing = false;
     this.previewOf = null;
@@ -132,6 +133,7 @@ class WallpaperEngine {
   createWindows() {
     const displays = screen.getAllDisplays();
     for (const display of displays) {
+      this.ensureToggle(display);
       if (this.windows.has(display.id)) continue;
       const b = display.bounds;
       // Electron reports DIP bounds; attach.ps1 is DPI-aware and positions the
@@ -228,12 +230,64 @@ class WallpaperEngine {
     }
   }
 
+  /* Small always-present button on the desktop that toggles the companion.
+     It is a normal top-level window (never reparented), so it floats above
+     the icons but is naturally covered by maximized apps and games. */
+  ensureToggle(display) {
+    const existing = this.toggles.get(display.id);
+    if (existing && !existing.isDestroyed()) return;
+    const area = display.workArea; // keep clear of the taskbar
+    const size = 44;
+    const gap = 16;
+    const win = new BrowserWindow({
+      x: area.x + gap,
+      y: area.y + area.height - size - gap,
+      width: size,
+      height: size,
+      frame: false,
+      transparent: true,
+      resizable: false,
+      movable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      show: false,
+      fullscreenable: false,
+      autoHideMenuBar: true,
+      title: 'WallFlow Companion Toggle',
+      webPreferences: {
+        preload: path.join(__dirname, '..', 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+    win.setMenuBarVisibility(false);
+    win.on('closed', () => {
+      if (this.toggles.get(display.id) === win) this.toggles.delete(display.id);
+      // the wallpaper lives on, so put a fresh button back (heal does this too)
+      if (this.current) this.scheduleHeal();
+    });
+    win.loadFile(path.join(__dirname, '..', 'floating', 'companion-toggle.html'))
+      .then(() => {
+        if (win.isDestroyed()) return;
+        try { win.showInactive(); } catch { /* ignore */ }
+      })
+      .catch(() => {
+        try { if (!win.isDestroyed()) win.destroy(); } catch { /* ignore */ }
+      });
+    this.toggles.set(display.id, win);
+  }
+
   destroyWindows() {
     for (const win of this.windows.values()) {
       try { win.destroy(); } catch { /* ignore */ }
     }
     this.windows.clear();
     this.attached.clear();
+    for (const win of this.toggles.values()) {
+      try { win.destroy(); } catch { /* ignore */ }
+    }
+    this.toggles.clear();
   }
 
   rebuild() {
@@ -284,7 +338,10 @@ class WallpaperEngine {
     if (this.healTimes.length >= 3) return;
     this.pruneWindows();
     const displays = screen.getAllDisplays();
-    const missing = displays.some((d) => !this.windows.has(d.id));
+    const missing = displays.some((d) => {
+      const toggle = this.toggles.get(d.id);
+      return !this.windows.has(d.id) || !toggle || toggle.isDestroyed();
+    });
     if (!missing) return;
     this.healTimes.push(now);
     // recreated windows pick up this.current after their page loads
@@ -319,6 +376,10 @@ class WallpaperEngine {
   broadcastSettings() {
     const settings = getSettings();
     for (const win of this.windows.values()) {
+      if (!win || win.isDestroyed()) continue;
+      win.webContents.send('wallpaper:settings', settings);
+    }
+    for (const win of this.toggles.values()) {
       if (!win || win.isDestroyed()) continue;
       win.webContents.send('wallpaper:settings', settings);
     }
