@@ -15,7 +15,7 @@ library, a clock overlay, and a little companion that naps on your screen.
 
 **[⬇️ Download WallFlow](https://github.com/xAgesx/WallFlow-wallpaperEngine-For-Desktop/releases)**
 
-![WallFlow desktop](docs/wallpaper.png)
+![Animated wallpaper demo](docs/demo-desktop.gif)
 
 </div>
 
@@ -39,13 +39,13 @@ WallFlow pulls wallpapers from third-party sites (Wallhaven, Konachan, booru gal
 - You are responsible for what appears on your screen, especially in shared spaces or while recording and streaming.
 - All wallpapers are served by the third-party sources themselves. The WallFlow developers have no control over them and cannot be held responsible for their content.
 
-## 📸 Screenshots
+## 🎬 Demos
 
-| The library |
-| :---: |
-| ![The WallFlow library](docs/library.png) |
+| Browsing the library | Your desktop companion |
+| :---: | :---: |
+| ![Browsing the wallpaper library](docs/demo-library.gif) | ![Companion pet waking and yawning](docs/demo-companion.gif) |
 
-Search, filter and preview wallpapers from every source in one place - then click to apply.
+Search, filter and preview wallpapers from every source in one place, then click to apply. The companion wakes up, stretches, yawns and reacts as you move your mouse.
 
 ## ⬇️ Download & install
 
