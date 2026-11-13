@@ -16,3 +16,6 @@ Thumbs.db
 # Local env & diagnostics
 .env
 *.local
+
+# Local notes, benchmarks and analysis
+docs/
