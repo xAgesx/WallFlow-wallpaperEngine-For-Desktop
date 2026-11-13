@@ -5,6 +5,9 @@ const { getSettings, setSettings } = require('./store');
 const { search, searchAll, recommend, listSources, SOURCES, CONTENTS, isAnimatedItem } = require('./apis');
 const { initLibrary } = require('./library');
 const { WallpaperEngine } = require('./wallpaper');
+const { loadEnv } = require('./env');
+
+loadEnv(); // local .env -> process.env (real environment variables win)
 
 const engine = new WallpaperEngine();
 let libraryWindow = null;
@@ -99,12 +102,13 @@ function setStartWithWindows(enabled) {
 
 function providerKeys() {
   const s = getSettings();
+  // settings entered in the UI win; keys from .env / environment fill the gaps
   return {
-    wallhavenKey: s.wallhavenKey || '',
-    pexelsKey: s.pexelsKey || '',
-    unsplashKey: s.unsplashKey || '',
-    pixabayKey: s.pixabayKey || '',
-    tenorKey: s.tenorKey || '',
+    wallhavenKey: s.wallhavenKey || process.env.WALLHAVEN_API_KEY || '',
+    pexelsKey: s.pexelsKey || process.env.PEXELS_API_KEY || '',
+    unsplashKey: s.unsplashKey || process.env.UNSPLASH_ACCESS_KEY || '',
+    pixabayKey: s.pixabayKey || process.env.PIXABAY_API_KEY || '',
+    tenorKey: s.tenorKey || process.env.TENOR_API_KEY || '',
   };
 }
 
