@@ -121,15 +121,19 @@ function initIpc() {
     });
   });
   // every source, regardless of key/disabled state — powers the Settings switches
-  ipcMain.handle('app:allSources', async () =>
-    SOURCES.map((s) => ({
+  ipcMain.handle('app:allSources', async () => {
+    const keys = providerKeys();
+    return SOURCES.map((s) => ({
       id: s.id,
       name: s.name,
       description: s.description,
       requiresKey: s.requiresKey || null,
+      // keys live in the environment now — the renderer only needs to know
+      // whether a source is usable, never the key itself
+      hasKey: s.requiresKey ? !!keys[s.requiresKey] : true,
       animated: !!s.animated,
-    }))
-  );
+    }));
+  });
   ipcMain.handle('app:contents', async () => CONTENTS);
   ipcMain.handle('app:search', async (_e, opts) => {
     try {
