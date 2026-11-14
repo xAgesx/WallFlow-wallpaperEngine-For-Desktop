@@ -151,6 +151,18 @@ function initIpc() {
     const prev = getSettings();
     const next = setSettings(patch);
     engine.broadcastSettings();
+    if (
+      'togglePosition' in patch ||
+      'toggleOffsetX' in patch ||
+      'toggleOffsetY' in patch
+    ) {
+      engine.syncToggles();
+    }
+    // keep the Settings UI in sync with changes made elsewhere
+    // (the floating button, the tray, another window)
+    if (libraryWindow && !libraryWindow.isDestroyed()) {
+      libraryWindow.webContents.send('wallpaper:settings', next);
+    }
     if ('startWithWindows' in patch && patch.startWithWindows !== prev.startWithWindows) {
       setStartWithWindows(next.startWithWindows);
     }
@@ -233,6 +245,8 @@ if (!gotLock) {
 
   app.on('before-quit', () => {
     quitting = true;
+    engine.quitting = true;
+    if (engine.healTimer) { clearTimeout(engine.healTimer); engine.healTimer = null; }
     // wallpaper windows are gone shortly after — stop the cursor timer and
     // kill the companion sensor process so it never outlives the app
     engine.stopCursorFeed();

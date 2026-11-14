@@ -76,6 +76,7 @@ class WallpaperEngine {
     this.healTimes = [];
     this.attachQueue = Promise.resolve();
     this.unstableLayer = false;
+    this.quitting = false;
   }
 
   init() {
@@ -101,6 +102,9 @@ class WallpaperEngine {
     screen.on('display-added', () => this.rebuild());
     screen.on('display-removed', () => this.rebuild());
     screen.on('display-metrics-changed', () => this.rebuild());
+
+    // the companion toggle exists from app start, wallpaper or not
+    this.syncToggles();
   }
 
   status() {
@@ -232,18 +236,47 @@ class WallpaperEngine {
 
   /* Small always-present button on the desktop that toggles the companion.
      It is a normal top-level window (never reparented), so it floats above
-     the icons but is naturally covered by maximized apps and games. */
+     the icons but is naturally covered by maximized apps and games. Its
+     lifetime is independent of the wallpaper: it exists from app start. */
+  /* Button geometry: a corner/edge from Settings plus pixel offsets,
+     clamped inside the work area so it can never be pushed off-screen. */
+  toggleBounds(display) {
+    const s = getSettings();
+    const area = display.workArea;
+    const size = 44;
+    const gap = 16;
+    const parts = (s.togglePosition || 'bottom-left') === 'center'
+      ? ['center', 'center']
+      : String(s.togglePosition || 'bottom-left').split('-');
+    const vert = parts[0] || 'bottom';
+    const horiz = parts[1] || 'center';
+
+    let x;
+    if (horiz === 'left') x = area.x + gap;
+    else if (horiz === 'right') x = area.x + area.width - size - gap;
+    else x = area.x + Math.round((area.width - size) / 2);
+
+    let y;
+    if (vert === 'top') y = area.y + gap;
+    else if (vert === 'bottom') y = area.y + area.height - size - gap;
+    else y = area.y + Math.round((area.height - size) / 2);
+
+    x += Number(s.toggleOffsetX) || 0;
+    y += Number(s.toggleOffsetY) || 0;
+    x = Math.min(Math.max(x, area.x + 4), area.x + area.width - size - 4);
+    y = Math.min(Math.max(y, area.y + 4), area.y + area.height - size - 4);
+    return { x: Math.round(x), y: Math.round(y), width: size, height: size };
+  }
+
   ensureToggle(display) {
     const existing = this.toggles.get(display.id);
     if (existing && !existing.isDestroyed()) return;
-    const area = display.workArea; // keep clear of the taskbar
-    const size = 44;
-    const gap = 16;
+    const b = this.toggleBounds(display);
     const win = new BrowserWindow({
-      x: area.x + gap,
-      y: area.y + area.height - size - gap,
-      width: size,
-      height: size,
+      x: b.x,
+      y: b.y,
+      width: b.width,
+      height: b.height,
       frame: false,
       transparent: true,
       resizable: false,
@@ -264,8 +297,8 @@ class WallpaperEngine {
     win.setMenuBarVisibility(false);
     win.on('closed', () => {
       if (this.toggles.get(display.id) === win) this.toggles.delete(display.id);
-      // the wallpaper lives on, so put a fresh button back (heal does this too)
-      if (this.current) this.scheduleHeal();
+      // the button must come back even when no wallpaper is running
+      this.scheduleHeal();
     });
     win.loadFile(path.join(__dirname, '..', 'floating', 'companion-toggle.html'))
       .then(() => {
@@ -284,14 +317,34 @@ class WallpaperEngine {
     }
     this.windows.clear();
     this.attached.clear();
-    for (const win of this.toggles.values()) {
-      try { win.destroy(); } catch { /* ignore */ }
+    // toggle buttons intentionally survive: they exist independently of the
+    // wallpaper (syncToggles owns their lifecycle from app start to quit)
+  }
+
+  // one button per display: drop stale ones (unplugged displays), create
+  // missing ones, re-apply position (settings or display changes)
+  syncToggles() {
+    if (this.quitting) return;
+    const displays = screen.getAllDisplays();
+    const valid = new Set(displays.map((d) => d.id));
+    for (const [id, win] of [...this.toggles]) {
+      if (valid.has(id) && win && !win.isDestroyed()) continue;
+      this.toggles.delete(id);
+      try { if (win && !win.isDestroyed()) win.destroy(); } catch { /* ignore */ }
     }
-    this.toggles.clear();
+    for (const display of displays) {
+      const existing = this.toggles.get(display.id);
+      if (existing && !existing.isDestroyed()) {
+        try { existing.setBounds(this.toggleBounds(display)); } catch { /* ignore */ }
+        continue;
+      }
+      this.ensureToggle(display);
+    }
   }
 
   rebuild() {
     this.destroyWindows();
+    this.syncToggles();
     if (this.current) this.createWindows();
   }
 
@@ -322,6 +375,7 @@ class WallpaperEngine {
   }
 
   scheduleHeal() {
+    if (this.quitting) return;
     if (this.healTimer) clearTimeout(this.healTimer);
     this.healTimer = setTimeout(() => {
       this.healTimer = null;
@@ -329,19 +383,28 @@ class WallpaperEngine {
     }, 3000);
   }
 
-  // recreate missing wallpaper windows: re-validates at fire time, rate-limited
+  // recreate missing windows: re-validates at fire time, rate-limited
   // so a pathological shell can't thrash window creation
   heal() {
-    if (!this.current) return;
+    if (this.quitting) return;
     const now = Date.now();
     this.healTimes = this.healTimes.filter((t) => now - t < 60000);
     if (this.healTimes.length >= 3) return;
     this.pruneWindows();
     const displays = screen.getAllDisplays();
-    const missing = displays.some((d) => {
+    // the toggle button heals even with no wallpaper running
+    const toggleMissing = displays.some((d) => {
       const toggle = this.toggles.get(d.id);
-      return !this.windows.has(d.id) || !toggle || toggle.isDestroyed();
+      return !toggle || toggle.isDestroyed();
     });
+    if (!this.current) {
+      if (toggleMissing) {
+        this.healTimes.push(now);
+        this.syncToggles();
+      }
+      return;
+    }
+    const missing = toggleMissing || displays.some((d) => !this.windows.has(d.id));
     if (!missing) return;
     this.healTimes.push(now);
     // recreated windows pick up this.current after their page loads
