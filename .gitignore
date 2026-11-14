@@ -19,3 +19,6 @@ Thumbs.db
 
 # Local notes, benchmarks and analysis
 docs/
+
+# Build output
+dist/
