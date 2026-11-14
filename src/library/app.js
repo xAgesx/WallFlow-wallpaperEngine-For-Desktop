@@ -623,6 +623,24 @@
     renderStatus();
   });
 
+  // settings changed elsewhere (floating button, tray, another window):
+  // refresh inputs so the Settings UI never shows a stale value. Inputs the
+  // user is actively touching are skipped so we never fight their drag.
+  api.on('wallpaper:settings', (s) => {
+    if (!s) return;
+    state.settings = s;
+    applyChrome();
+    $$('#settings-view [data-setting]').forEach((input) => {
+      if (document.activeElement === input) return;
+      const key = input.dataset.setting;
+      const val = s[key];
+      if (input.type === 'checkbox') input.checked = !!val;
+      else input.value = val;
+      updateValLabel(key, val);
+    });
+    renderSourceToggles();
+  });
+
   $('#pb-discard').addEventListener('click', async () => {
     const hadPrevious = !!(state.status && state.status.previewOriginal);
     await api.invoke('wallpaper:discardPreview');
@@ -826,6 +844,8 @@
     companionOffsetX: (v) => v + 'px',
     companionOffsetY: (v) => v + 'px',
     companionOpacity: (v) => v + '%',
+    toggleOffsetX: (v) => v + 'px',
+    toggleOffsetY: (v) => v + 'px',
   };
 
   function bindSettings() {

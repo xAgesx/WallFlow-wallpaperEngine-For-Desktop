@@ -278,6 +278,32 @@
           </div>
 
           <div class="set-group">
+            <h2>Desktop button</h2>
+            <div class="set-row">
+              <label>Position <span class="hint-inline">(paw button that toggles the companion)</span></label>
+              <select data-setting="togglePosition">
+                <option value="top-left">Top left</option>
+                <option value="top-center">Top center</option>
+                <option value="top-right">Top right</option>
+                <option value="middle-left">Left</option>
+                <option value="center">Center</option>
+                <option value="middle-right">Right</option>
+                <option value="bottom-left">Bottom left</option>
+                <option value="bottom-center">Bottom center</option>
+                <option value="bottom-right">Bottom right</option>
+              </select>
+            </div>
+            <div class="set-row">
+              <label>Offset X <span class="val" data-for="toggleOffsetX"></span></label>
+              <input type="range" data-setting="toggleOffsetX" min="-400" max="400" step="5" />
+            </div>
+            <div class="set-row">
+              <label>Offset Y <span class="val" data-for="toggleOffsetY"></span></label>
+              <input type="range" data-setting="toggleOffsetY" min="-400" max="400" step="5" />
+            </div>
+          </div>
+
+          <div class="set-group">
             <h2>Playlist rotation</h2>
             <div class="set-row">
               <label>Rotate wallpapers</label>
