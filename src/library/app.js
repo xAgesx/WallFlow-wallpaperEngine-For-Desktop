@@ -198,8 +198,9 @@
     const disabled = new Set(state.settings.disabledSources || []);
     wrap.innerHTML = state.allSources
       .map((s) => {
-        const needsKey = s.requiresKey && !(state.settings[s.requiresKey] || '').trim();
-        const hint = s.description + (needsKey ? ' — add API key in Settings to use' : '');
+        // key presence comes from the main process (env keys), never the key itself
+        const needsKey = s.requiresKey && !s.hasKey;
+        const hint = s.description + (needsKey ? ' — unavailable: no API key configured' : '');
         return (
           `<div class="set-row">` +
           `<label>${escapeHtml(s.name)}<br /><span class="hint-inline">${escapeHtml(hint)}</span></label>` +
@@ -214,17 +215,23 @@
     });
   }
 
-  async function onSourceToggle(input) {
+  // settings writes are serialized: each toggle reads the persisted settings
+  // right before writing, so a stale renderer copy can never wipe out another
+  // source's disabled state
+  let settingsWriteQueue = Promise.resolve();
+
+  function onSourceToggle(input) {
     const id = input.dataset.sourceToggle;
-    const disabled = new Set(state.settings.disabledSources || []);
-    if (input.checked) disabled.delete(id);
-    else disabled.add(id);
-    if (state.allSources.length - disabled.size <= 0) {
-      input.checked = true;
-      toast('Keep at least one source enabled', 'error');
-      return;
-    }
-    try {
+    const write = settingsWriteQueue.then(async () => {
+      const fresh = await api.invoke('settings:get');
+      const disabled = new Set(fresh.disabledSources || []);
+      if (input.checked) disabled.delete(id);
+      else disabled.add(id);
+      if (state.allSources.length - disabled.size <= 0) {
+        input.checked = true;
+        toast('Keep at least one source enabled', 'error');
+        return;
+      }
       state.settings = await api.invoke('settings:set', { disabledSources: [...disabled] });
       state.sources = await api.invoke('app:sources');
       if (state.source !== 'all' && !state.sources.some((s) => s.id === state.source)) {
@@ -235,10 +242,12 @@
       const name = ((state.allSources.find((s) => s.id === id) || {}).name) || id;
       toast(input.checked ? `${name} enabled` : `${name} disabled`, input.checked ? 'ok' : '');
       if (isFeedView()) loadFeed(true);
-    } catch (e) {
+    });
+    settingsWriteQueue = write.catch(() => {});
+    write.catch((e) => {
       input.checked = !input.checked;
       toast('Could not update sources: ' + String(e.message || e), 'error');
-    }
+    });
   }
 
   /* ---------------- filters ---------------- */
@@ -319,7 +328,17 @@
     populateFilters();
     updateCounts();
 
-    if (isSettings) return;
+    if (isSettings) {
+      // re-read persisted settings so switches reflect any change made
+      // outside this window (or a stale boot copy)
+      renderSourceToggles();
+      api.invoke('settings:get').then((s) => {
+        if (!s || state.view !== 'settings') return;
+        state.settings = s;
+        renderSourceToggles();
+      });
+      return;
+    }
     if (view === 'foryou' || view === 'all') loadFeed(true);
     else if (view === 'favorites') renderCollection(state.favorites, 'No favorites yet', 'Tap the heart on any wallpaper to keep it here.');
     else if (view === 'local') renderCollection(state.library, 'No wallpapers downloaded', 'Upload files or hit Download on any wallpaper — they stay on your machine.');
@@ -681,9 +700,6 @@
       return;
     }
     state.nsfw = els.fNsfw.checked;
-    if (state.nsfw && !(state.settings.wallhavenKey || '').length) {
-      toast('Tip: add a free Wallhaven API key in Settings for NSFW results there');
-    }
     if (isFeedView()) loadFeed(true);
   });
 
@@ -838,19 +854,6 @@
         }
         if (key === 'animatedOnly') {
           await onAnimatedOnlyChanged(v);
-        }
-        if (key.endsWith('Key')) {
-          state.sources = await api.invoke('app:sources');
-          renderSourceSelect();
-          renderSourceToggles();
-          if (v) toast('Source unlocked — it now appears in the source filter', 'ok');
-          else {
-            if (state.source !== 'all' && !state.sources.some((s) => s.id === state.source)) {
-              state.source = 'all';
-              renderSourceSelect();
-              if (isFeedView()) loadFeed(true);
-            }
-          }
         }
       };
       input.addEventListener(
