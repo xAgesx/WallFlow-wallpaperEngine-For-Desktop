@@ -197,7 +197,7 @@ const PEOPLE_RE = new RegExp(
     'actor', 'actress', 'celebrity',
     'child', 'children', 'kid', 'baby', 'family',
     'muscle', 'shirtless', 'handsome', 'cosplay',
-    'lady', 'gentleman',
+    'lady', 'gentleman', 'guy',
     'princess', 'prince', 'king', 'queen', 'knight', 'warrior',
     'soldier', 'priest', 'bishop', 'emperor(?! ?penguin)', 'shepherd',
     'hunter', 'fisherman', 'peasant', 'rider', 'archer', 'maid',
@@ -555,30 +555,154 @@ async function fetchNasa(serverPage, ctx) {
 /* ---------------- Wikimedia (curated quality images by default) ---------------- */
 
 /*
- * CirrusSearch term negations keep diagrams, maps, flags and screenshots out
- * of the results. A negation the user actually searched for is dropped so a
- * query like "map of iceland" can't self-eliminate.
+ * CirrusSearch term negations keep diagrams, maps, flags, screenshots and
+ * non-photographic files (interviews, scientific plates, drawings, scans)
+ * out of the results. A negation the user actually searched for is dropped
+ * so a query like "map of iceland" can't self-eliminate.
+ *
+ * Commons hard-caps the search string at 300 characters and answers longer
+ * queries with a JSON-level error, so the list is ordered by value and
+ * trimmed to the budget that is left after the query itself.
  */
 const WIKI_NEGATIVE_TERMS = [
-  '-portrait', '-map', '-diagram', '-logo', '-flag', '-chart',
-  '-screenshot', '-icon', '-emblem', '-text',
+  // interviews, talks & broadcast footage — the usual offenders
+  '-interview', '-lecture', '-conference', '-seminar', '-speech',
+  '-trailer', '-documentary', '-review', '-tutorial', '-gameplay',
+  '-advertisement', '-news', '-concert', '-rehearsal',
+  // drawings, prints & scientific illustrations instead of photographs
+  '-illustration', '-drawing', '-sketch', '-engraving', '-painting',
+  '-watercolor', '-specimen', '-anatomy', '-micrograph', '-histology',
+  // classic non-photo graphics (short terms, high value)
+  '-map', '-diagram', '-chart', '-screenshot', '-logo',
+  '-flag', '-icon', '-emblem', '-text', '-portrait',
+  // documents, signage & printed matter
+  '-document', '-poster', '-scan', '-infographic', '-collage',
+  '-manuscript', '-certificate', '-newspaper',
+  // small collectible objects & fonts that only work as macro shots
+  '-stamp', '-banknote', '-coin', '-plaque', '-font',
+  '-typeface', '-glyph', '-watermark',
+  // the rest — used whenever the query is short enough to fit them
+  '-etching', '-woodcut', '-lithograph', '-print', '-fossil',
+  '-equation', '-vlog', '-episode', '-commentary', '-karaoke',
+  '-walkthrough', '-recording', '-music', '-anthem', '-broadcast',
+  '-science', '-institute',
 ];
 
-function wikiNegations(query) {
+/* Commons CirrusSearch limit: 300 chars for the search string (the
+   filetype:/incategory: filter words themselves are exempt). */
+const WIKI_QUERY_MAX = 300;
+
+function wikiBudget(prefix, core) {
+  // prefix + core + ' ' + negations <= 300, minus a small safety margin
+  return Math.max(0, WIKI_QUERY_MAX - prefix.length - String(core || '').length - 3);
+}
+
+function wikiNegations(query, budget = WIKI_QUERY_MAX) {
   const words = new Set(String(query || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
-  return WIKI_NEGATIVE_TERMS.filter((n) => !words.has(n.slice(1))).join(' ');
+  const out = [];
+  let len = 0;
+  for (const n of WIKI_NEGATIVE_TERMS) {
+    if (words.has(n.slice(1))) continue;
+    const add = n.length + (out.length ? 1 : 0);
+    if (len + add > budget) break; // list is priority-ordered: keep the top terms
+    out.push(n);
+    len += add;
+  }
+  return out.join(' ');
+}
+
+/* Wikimedia reports API-level failures as JSON with HTTP 200 — surface them
+   so a bad query fails loudly instead of silently returning an empty page. */
+async function getWikiJson(url, opts) {
+  const json = await getJson(url, opts);
+  if (json && json.error) {
+    throw new Error(`wikimedia: ${json.error.code || json.error.info || 'api error'}`);
+  }
+  return json;
+}
+
+/*
+ * Second line of defense: titles the query negations can't catch (word
+ * variants, compound names). Applied to every wikimedia item — curated
+ * category picks included — so people, documents and scientific figures
+ * never reach the grid. Returns true when the title looks like a wallpaper.
+ */
+const WIKI_JUNK_RE = new RegExp(
+  wordsRe([
+    // broadcast & event footage instead of scenery
+    'interview', 'lecture', 'conference', 'seminar', 'symposium',
+    'keynote', 'webinar', 'panel discussion', 'press conference',
+    // artwork & scientific plates instead of photographs
+    'illustration', 'drawing', 'sketch', 'engraving', 'etching',
+    'woodcut', 'lithograph', 'watercolor', 'watercolour', 'painting',
+    'specimen', 'anatomy', 'anatomical', 'histology', 'micrograph',
+    'microscope', 'equation', 'theorem', 'infographic',
+    'collage', 'montage', 'cartoon', 'diagram', 'schematic',
+    'flowchart', 'blueprint',
+    // simulations, demos & data figures (scientific GIF/video fodder)
+    'simulation', 'experiment', 'demonstration', 'laboratory',
+    'example', 'reduction', 'isochron', 'crust',
+    'animation', 'breakup', 'visualization', 'mosaic',
+    // documents & printed matter
+    'manuscript', 'parchment', 'scan', 'screenshot', 'screen capture',
+    'document', 'letter', 'certificate', 'diploma', 'newspaper',
+    'poster', 'advertisement', 'billboard', 'clipart',
+    'font', 'typeface', 'glyph', 'watermark', 'chart', 'news',
+    // small collectible objects that only work as macro shots
+    'stamp', 'banknote', 'currency', 'coin',
+    // heraldry
+    'plaque', 'coat of arms', 'heraldry', 'blazon', 'seal of', 'great seal',
+    // signage & graphics over scenery
+    'sign', 'figure', 'plate',
+    // satellite & weather data animations
+    'satellite', 'seaice', 'sea ice', 'greenhouse', 'precipitable',
+    'intensifying', 'cyclone', 'tpw', 'radiance',
+    'stratocumulus', 'eddies', 'cira',
+    // disasters read as news photos, not wallpapers
+    'wildfire', 'forest fire', 'flood', 'flooding',
+  ]),
+  'i'
+);
+
+/* A year range ("Aral sea 2000-2009") or a run of years ("for 2005, 2006,
+   2007") almost always means a data timelapse rather than a photograph. */
+const WIKI_YEAR_RANGE_RE =
+  /\b(?:19|20)\d{2}\s*[-–/]\s*(?:19|20)\d{2}\b|\b(?:19|20)\d{2}[,;]?\s+(?:19|20)\d{2}[,;]?\s+(?:19|20)\d{2}\b/;
+
+/* Resolution floor — wallpapers below ~1600px wide look soft on modern screens. */
+const WIKI_MIN_WIDTH = 1600;
+
+/*
+ * Music-show / idol footage leaks into video results whenever a group name
+ * matches the query (the group "Nature" ranks for "nature"). English wordsRe
+ * can't match Korean titles, so those get a plain substring blocklist.
+ */
+const WIKI_JUNK_SUBSTRINGS = [
+  '리허설', '출근길', '직캠', '뮤직뱅크', '음악중심', '인기가요',
+  '컴백', '포토타임', '공개녹화', 'fancam', 'dance practice',
+];
+
+function wikiTitleIsJunk(title) {
+  const text = gateText({ title, tags: [] });
+  if (WIKI_JUNK_RE.test(text)) return true;
+  if (WIKI_YEAR_RANGE_RE.test(text)) return true;
+  const lower = String(title || '').toLowerCase();
+  return WIKI_JUNK_SUBSTRINGS.some((s) => lower.includes(s));
 }
 
 function mapWikiPage(p) {
   const info = (p.imageinfo && p.imageinfo[0]) || {};
   if (!info.thumburl && !info.url) return null;
+  if (info.width && info.width < WIKI_MIN_WIDTH && info.height < WIKI_MIN_WIDTH) return null;
+  const title = (p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
+  if (wikiTitleIsJunk(title)) return null;
   const big = info.thumburl || info.url;
   const thumb = big.replace(/\/\d+px-/, '/400px-');
   return {
     id: `wikimedia:${p.pageid}`,
     source: 'wikimedia',
     type: 'image',
-    title: (p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, ''),
+    title,
     author: 'Wikimedia Commons',
     pageUrl: `https://commons.wikimedia.org/?curid=${p.pageid}`,
     thumb,
@@ -590,6 +714,45 @@ function mapWikiPage(p) {
   };
 }
 
+/* Shared video mapper — same junk/resolution bar for the wikimedia source
+   and the Commons videos inside the motion feed. */
+function mapWikiVideo(p, source = 'wikimedia') {
+  const info = (p.imageinfo && p.imageinfo[0]) || {};
+  if (!info.url || !/webm|mp4|ogv/i.test(info.mime || '')) return null;
+  if (info.width && info.width < WIKI_MIN_WIDTH && info.height < WIKI_MIN_WIDTH) return null;
+  const title = (p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
+  if (wikiTitleIsJunk(title)) return null;
+  return {
+    id: `wikimedia:${p.pageid}`,
+    source,
+    type: 'video',
+    title,
+    author: 'Wikimedia Commons',
+    pageUrl: `https://commons.wikimedia.org/?curid=${p.pageid}`,
+    thumb: info.thumburl || null,
+    full: info.url,
+    width: info.width || 0,
+    height: info.height || 0,
+    category: 'video',
+    tags: [],
+    animated: true,
+  };
+}
+
+/* Curated quality categories for the no-query feed — verified to exist on
+   Commons; the feed rotates so every session shows different scenery. */
+const WIKI_CATEGORIES = [
+  'Quality_images_of_landscapes',
+  'Quality_images_of_mountains',
+  'Quality_images_of_seas',
+  'Quality_images_of_forests',
+  'Quality_images_of_rivers',
+  'Quality_images_of_lakes',
+  'Quality_images_of_sunsets',
+  'Quality_images_of_clouds',
+  'Quality_images_of_waterfalls',
+];
+
 async function fetchWikimedia(serverPage, ctx) {
   const { query, filters, meta } = ctx;
   const cat = filters.category && filters.category !== 'all' ? filters.category : '';
@@ -597,60 +760,60 @@ async function fetchWikimedia(serverPage, ctx) {
 
   if (filters.animatedOnly) {
     // open video (webm/mp4) from Commons — the animated counterpart of this source
+    const core = q || 'nature';
     const url =
       'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&' +
       'generator=search&gsrnamespace=6&gsrlimit=30&' +
       `gsroffset=${serverPage * 30}&` +
-      `gsrsearch=${encodeURIComponent(`filetype:video ${q || 'nature'} ${wikiNegations(q)}`)}&` +
+      `gsrsearch=${encodeURIComponent(`filetype:video ${core} ${wikiNegations(q, wikiBudget('filetype:video ', core))}`)}&` +
       'prop=imageinfo&iiprop=url|size|mime&iiurlwidth=640';
-    const json = await getJson(url);
+    const json = await getWikiJson(url);
     const pages = (json.query && json.query.pages) || {};
-    const items = Object.values(pages)
-      .map((p) => {
-        const info = (p.imageinfo && p.imageinfo[0]) || {};
-        if (!info.url || !/webm|mp4|ogv/i.test(info.mime || '')) return null;
-        return {
-          id: `wikimedia:${p.pageid}`,
-          source: 'wikimedia',
-          type: 'video',
-          title: (p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, ''),
-          author: 'Wikimedia Commons',
-          pageUrl: `https://commons.wikimedia.org/?curid=${p.pageid}`,
-          thumb: info.thumburl || null,
-          full: info.url,
-          width: info.width || 0,
-          height: info.height || 0,
-          category: 'video',
-          tags: [],
-          animated: true,
-        };
-      })
-      .filter(Boolean);
+    const items = Object.values(pages).map((p) => mapWikiVideo(p, 'wikimedia')).filter(Boolean);
     return { items, hasMore: !!json.continue || items.length === 30 };
   }
 
   if (!query && !cat) {
-    // curated feed: Commons Quality images of landscapes (top-tier photos)
+    // curated feed: Commons Quality images — rotates through scenery
+    // categories so repeat sessions don't show the same landscape list
+    if (!meta.wikiCat) {
+      meta.wikiTried = [];
+      meta.wikiCat = WIKI_CATEGORIES[Math.floor(Math.random() * WIKI_CATEGORIES.length)];
+      meta.wikiTried.push(meta.wikiCat);
+    }
     let url =
       'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&' +
       'generator=categorymembers&gcmtype=file&gcmlimit=40&' +
-      'gcmtitle=Category%3AQuality_images_of_landscapes&' +
+      `gcmtitle=Category%3A${meta.wikiCat}&` +
       'prop=imageinfo&iiprop=url|size|mime&iiurlwidth=2560';
     if (meta.gcmcontinue) url += `&gcmcontinue=${encodeURIComponent(meta.gcmcontinue)}`;
-    const json = await getJson(url);
+    const json = await getWikiJson(url);
     const pages = (json.query && json.query.pages) || {};
     const items = Object.values(pages).map(mapWikiPage).filter(Boolean);
-    meta.gcmcontinue = (json.continue && json.continue.gcmcontinue) || null;
-    return { items, hasMore: !!(json.continue && json.continue.gcmcontinue) };
+    const cont = (json.continue && json.continue.gcmcontinue) || null;
+    if (cont) {
+      meta.gcmcontinue = cont;
+      return { items, hasMore: true };
+    }
+    // category exhausted: queue the next untried one for the following page
+    meta.gcmcontinue = null;
+    const rest = WIKI_CATEGORIES.filter((c) => !meta.wikiTried.includes(c));
+    if (rest.length) {
+      meta.wikiCat = rest[Math.floor(Math.random() * rest.length)];
+      meta.wikiTried.push(meta.wikiCat);
+      return { items, hasMore: true };
+    }
+    return { items, hasMore: false };
   }
 
+  const core = q || 'landscape';
   const url =
     'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&' +
     'generator=search&gsrnamespace=6&gsrlimit=40&' +
     `gsroffset=${serverPage * 40}&` +
-    `gsrsearch=${encodeURIComponent(`filetype:bitmap ${q || 'landscape'} ${wikiNegations(q)}`)}&` +
+    `gsrsearch=${encodeURIComponent(`filetype:bitmap ${core} ${wikiNegations(q, wikiBudget('filetype:bitmap ', core))}`)}&` +
     'prop=imageinfo&iiprop=url|size|mime&iiurlwidth=2560';
-  const json = await getJson(url);
+  const json = await getWikiJson(url);
   const pages = (json.query && json.query.pages) || {};
   const items = Object.values(pages).map(mapWikiPage).filter(Boolean);
   return { items, hasMore: !!json.continue || items.length === 40 };
@@ -895,7 +1058,7 @@ async function fetchKonachan(serverPage, ctx) {
 async function fetchPexels(serverPage, ctx) {
   const { query, filters } = ctx;
   const apiKey = filters.keys && filters.keys.pexelsKey;
-  if (!apiKey) throw new Error('Pexels API key missing — add it in Settings');
+  if (!apiKey) throw new Error('Pexels API key missing — provided by the app environment');
   const cat = filters.category && filters.category !== 'all' ? filters.category : '';
   const q = [query, cat].filter(Boolean).join(' ').trim() || 'wallpaper';
 
@@ -973,7 +1136,7 @@ async function fetchPexels(serverPage, ctx) {
 async function fetchUnsplash(serverPage, ctx) {
   const { query, filters } = ctx;
   const apiKey = filters.keys && filters.keys.unsplashKey;
-  if (!apiKey) throw new Error('Unsplash API key missing — add it in Settings');
+  if (!apiKey) throw new Error('Unsplash API key missing — provided by the app environment');
   const cat = filters.category && filters.category !== 'all' ? filters.category : '';
   const q = [query, cat].filter(Boolean).join(' ').trim() || 'wallpaper';
   const params = new URLSearchParams({
@@ -1018,7 +1181,7 @@ const PIXABAY_CATEGORY = {
 async function fetchPixabay(serverPage, ctx) {
   const { query, filters } = ctx;
   const apiKey = filters.keys && filters.keys.pixabayKey;
-  if (!apiKey) throw new Error('Pixabay API key missing — add it in Settings');
+  if (!apiKey) throw new Error('Pixabay API key missing — provided by the app environment');
   const cat = filters.category && filters.category !== 'all' ? filters.category : '';
   const nativeCat = PIXABAY_CATEGORY[cat] || '';
   const q = [query, nativeCat ? '' : cat].filter(Boolean).join(' ').trim();
@@ -1097,7 +1260,7 @@ async function fetchPixabay(serverPage, ctx) {
 async function fetchTenor(serverPage, ctx) {
   const { query, filters, meta } = ctx;
   const apiKey = filters.keys && filters.keys.tenorKey;
-  if (!apiKey) throw new Error('Tenor API key missing — add it in Settings');
+  if (!apiKey) throw new Error('Tenor API key missing — provided by the app environment');
   const q =
     [query, filters.category !== 'all' ? filters.category : ''].filter(Boolean).join(' ') ||
     'wallpaper';
@@ -1317,35 +1480,16 @@ async function fetchMotion(serverPage, ctx) {
 
   // Wikimedia video pages
   try {
+    const core = q || 'nature';
     const url =
       'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&' +
       'generator=search&gsrnamespace=6&gsrlimit=30&' +
       `gsroffset=${serverPage * 30}&` +
-      `gsrsearch=${encodeURIComponent(`filetype:video ${q || 'nature'} ${wikiNegations(q)}`)}&` +
+      `gsrsearch=${encodeURIComponent(`filetype:video ${core} ${wikiNegations(q, wikiBudget('filetype:video ', core))}`)}&` +
       'prop=imageinfo&iiprop=url|size|mime&iiurlwidth=640';
-    const json = await getJson(url);
+    const json = await getWikiJson(url);
     const pages = (json.query && json.query.pages) || {};
-    const wiki = Object.values(pages)
-      .map((p) => {
-        const info = (p.imageinfo && p.imageinfo[0]) || {};
-        if (!/webm|mp4|ogv/i.test(info.mime || '')) return null;
-        return {
-          id: `wikimedia:${p.pageid}`,
-          source: 'motion',
-          type: 'video',
-          title: (p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, ''),
-          author: 'Wikimedia',
-          pageUrl: `https://commons.wikimedia.org/?curid=${p.pageid}`,
-          thumb: info.thumburl || null,
-          full: info.url,
-          width: info.width || 0,
-          height: info.height || 0,
-          category: 'video',
-          tags: [],
-          animated: true,
-        };
-      })
-      .filter(Boolean);
+    const wiki = Object.values(pages).map((p) => mapWikiVideo(p, 'motion')).filter(Boolean);
     out.push(...wiki);
     if (wiki.length === 30) hasMore = true;
   } catch {
@@ -1389,13 +1533,14 @@ async function fetchGif(serverPage, ctx) {
     meta.gifTerm = GIF_DEFAULT_TERMS[Math.floor(Math.random() * GIF_DEFAULT_TERMS.length)];
   }
   const term = given || meta.gifTerm;
+  const prefix = 'incategory:"Animated GIF files" ';
   const url =
     'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&' +
     'generator=search&gsrnamespace=6&gsrlimit=40&' +
     `gsroffset=${serverPage * 40}&` +
-    `gsrsearch=${encodeURIComponent(`incategory:"Animated GIF files" ${term} ${wikiNegations(term)}`)}&` +
+    `gsrsearch=${encodeURIComponent(`${prefix}${term} ${wikiNegations(term, wikiBudget(prefix, term))}`)}&` +
     'prop=imageinfo&iiprop=url|size|mime&iiurlwidth=480';
-  const json = await getJson(url);
+  const json = await getWikiJson(url);
   const pages = (json.query && json.query.pages) || {};
   const items = Object.values(pages)
     .map((p) => {
@@ -1403,12 +1548,14 @@ async function fetchGif(serverPage, ctx) {
       if (!info.url || !/gif/i.test(info.mime || '')) return null;
       if (info.size && info.size > 30 * 1024 * 1024) return null; // keep downloads sane
       if (info.width && info.width < 320) return null;
+      const title = (p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
+      if (wikiTitleIsJunk(title)) return null;
       const thumb = String(info.thumburl || info.url).replace(/\/\d+px-/, '/480px-');
       return {
         id: `gif:${p.pageid}`,
         source: 'gif',
         type: 'image',
-        title: (p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, ''),
+        title,
         author: 'Wikimedia Commons',
         pageUrl: `https://commons.wikimedia.org/?curid=${p.pageid}`,
         thumb,
