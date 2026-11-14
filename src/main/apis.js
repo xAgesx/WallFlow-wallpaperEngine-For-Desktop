@@ -1,5 +1,53 @@
 const UA = 'WallFlow/1.0 (desktop wallpaper engine)';
 
+/* --- Optional key proxy -------------------------------------------------
+ * When a proxy endpoint is configured (WALLFLOW_PROXY_URL env var, or
+ * PROXY_URL in ./config.js), calls to keyed providers are routed through it
+ * and the proxy injects the API key server-side, so the shipped client never
+ * carries a provider key. With no proxy configured every provider behaves
+ * exactly as before (direct calls using local env keys).
+ * The value is read lazily because env is loaded after this module. */
+function proxyBase() {
+  const fromEnv = (process.env.WALLFLOW_PROXY_URL || '').trim();
+  if (fromEnv) return fromEnv;
+  try {
+    return (require('./config').PROXY_URL || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function proxyActive() {
+  return !!proxyBase();
+}
+
+/* Hosts the proxy is allowed to inject keys for. */
+const PROXY_HOSTS = new Set([
+  'wallhaven.cc',
+  'api.pexels.com',
+  'api.unsplash.com',
+  'pixabay.com',
+  'tenor.googleapis.com',
+]);
+
+/* Rewrite a keyed-provider URL to go through the proxy; pass others through. */
+function viaProxy(url) {
+  const base = proxyBase();
+  if (!base) return url;
+  try {
+    const u = new URL(url);
+    if (!PROXY_HOSTS.has(u.hostname)) return url;
+    return `${base}${base.includes('?') ? '&' : '?'}u=${encodeURIComponent(url)}`;
+  } catch {
+    return url;
+  }
+}
+
+/* A keyed provider is usable when we have a local key or a proxy will supply it. */
+function keyed(localKey) {
+  return !!localKey || proxyActive();
+}
+
 const WH_SORTS = new Set(['relevance', 'hot', 'date_added', 'top', 'random']);
 
 const SOURCES = [
@@ -304,11 +352,16 @@ const CURATED_VIDEOS = [
 /* ---------------- HTTP + cache ---------------- */
 
 async function getJson(url, { timeout = 25000, headers = {} } = {}) {
+  const target = viaProxy(url);
+  const proxied = target !== url;
+  const send = { ...headers };
+  // the proxy injects its own provider auth — never forward a local key header
+  if (proxied) delete send.Authorization;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeout);
   try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json', ...headers },
+    const res = await fetch(target, {
+      headers: { 'User-Agent': UA, Accept: 'application/json', ...send },
       signal: ctrl.signal,
     });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText} (${url.split('?')[0]})`);
@@ -319,11 +372,15 @@ async function getJson(url, { timeout = 25000, headers = {} } = {}) {
 }
 
 async function getText(url, { timeout = 20000, headers = {} } = {}) {
+  const target = viaProxy(url);
+  const proxied = target !== url;
+  const send = { ...headers };
+  if (proxied) delete send.Authorization;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeout);
   try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': UA, ...headers },
+    const res = await fetch(target, {
+      headers: { 'User-Agent': UA, ...send },
       signal: ctrl.signal,
     });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText} (${url.split('?')[0]})`);
@@ -1058,7 +1115,7 @@ async function fetchKonachan(serverPage, ctx) {
 async function fetchPexels(serverPage, ctx) {
   const { query, filters } = ctx;
   const apiKey = filters.keys && filters.keys.pexelsKey;
-  if (!apiKey) throw new Error('Pexels API key missing — provided by the app environment');
+  if (!keyed(apiKey)) throw new Error('Pexels API key missing — add a key or enable the key proxy');
   const cat = filters.category && filters.category !== 'all' ? filters.category : '';
   const q = [query, cat].filter(Boolean).join(' ').trim() || 'wallpaper';
 
@@ -1136,7 +1193,7 @@ async function fetchPexels(serverPage, ctx) {
 async function fetchUnsplash(serverPage, ctx) {
   const { query, filters } = ctx;
   const apiKey = filters.keys && filters.keys.unsplashKey;
-  if (!apiKey) throw new Error('Unsplash API key missing — provided by the app environment');
+  if (!keyed(apiKey)) throw new Error('Unsplash API key missing — add a key or enable the key proxy');
   const cat = filters.category && filters.category !== 'all' ? filters.category : '';
   const q = [query, cat].filter(Boolean).join(' ').trim() || 'wallpaper';
   const params = new URLSearchParams({
@@ -1181,7 +1238,7 @@ const PIXABAY_CATEGORY = {
 async function fetchPixabay(serverPage, ctx) {
   const { query, filters } = ctx;
   const apiKey = filters.keys && filters.keys.pixabayKey;
-  if (!apiKey) throw new Error('Pixabay API key missing — provided by the app environment');
+  if (!keyed(apiKey)) throw new Error('Pixabay API key missing — add a key or enable the key proxy');
   const cat = filters.category && filters.category !== 'all' ? filters.category : '';
   const nativeCat = PIXABAY_CATEGORY[cat] || '';
   const q = [query, nativeCat ? '' : cat].filter(Boolean).join(' ').trim();
@@ -1260,7 +1317,7 @@ async function fetchPixabay(serverPage, ctx) {
 async function fetchTenor(serverPage, ctx) {
   const { query, filters, meta } = ctx;
   const apiKey = filters.keys && filters.keys.tenorKey;
-  if (!apiKey) throw new Error('Tenor API key missing — provided by the app environment');
+  if (!keyed(apiKey)) throw new Error('Tenor API key missing — add a key or enable the key proxy');
   const q =
     [query, filters.category !== 'all' ? filters.category : ''].filter(Boolean).join(' ') ||
     'wallpaper';
@@ -1409,7 +1466,7 @@ async function fetchMotion(serverPage, ctx) {
 
   // stock video providers when keys are configured — paginated with serverPage
   try {
-    if (keys && keys.pexelsKey) {
+    if (keys && keyed(keys.pexelsKey)) {
       const params = new URLSearchParams({ query: q || 'nature', page: String(serverPage + 1), per_page: '40' });
       if (filters.orientation && filters.orientation !== 'all') params.set('orientation', filters.orientation);
       const json = await getJson(`https://api.pexels.com/videos/search?${params}`, {
@@ -1442,7 +1499,7 @@ async function fetchMotion(serverPage, ctx) {
       }
       if (vids.length) hasMore = true;
     }
-    if (keys && keys.pixabayKey) {
+    if (keys && keyed(keys.pixabayKey)) {
       const params = new URLSearchParams({
         key: keys.pixabayKey,
         q: q || 'nature',
@@ -1832,7 +1889,7 @@ function listSources(keys = {}, opts = {}) {
   const disabled = opts.disabled || new Set();
   return SOURCES.filter((s) => {
     if (disabled.has(s.id)) return false;
-    if (s.requiresKey && !keys[s.requiresKey]) return false;
+    if (s.requiresKey && !keyed(keys[s.requiresKey])) return false;
     if (opts.animatedOnly && !s.animated) return false;
     return true;
   });
@@ -1843,6 +1900,7 @@ module.exports = {
   searchAll,
   recommend,
   listSources,
+  proxyActive,
   SOURCES,
   CONTENTS,
   isAnimatedItem,

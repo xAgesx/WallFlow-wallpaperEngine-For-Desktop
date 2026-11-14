@@ -2,7 +2,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, screen } = 
 const path = require('path');
 const { spawn } = require('child_process');
 const { getSettings, setSettings } = require('./store');
-const { search, searchAll, recommend, listSources, SOURCES, CONTENTS, isAnimatedItem } = require('./apis');
+const { search, searchAll, recommend, listSources, proxyActive, SOURCES, CONTENTS, isAnimatedItem } = require('./apis');
 const { initLibrary } = require('./library');
 const { WallpaperEngine } = require('./wallpaper');
 const { loadEnv } = require('./env');
@@ -129,8 +129,9 @@ function initIpc() {
       description: s.description,
       requiresKey: s.requiresKey || null,
       // keys live in the environment now — the renderer only needs to know
-      // whether a source is usable, never the key itself
-      hasKey: s.requiresKey ? !!keys[s.requiresKey] : true,
+      // whether a source is usable, never the key itself; the key proxy also
+      // makes keyed sources usable even when no local key is set
+      hasKey: s.requiresKey ? (!!keys[s.requiresKey] || proxyActive()) : true,
       animated: !!s.animated,
     }));
   });
