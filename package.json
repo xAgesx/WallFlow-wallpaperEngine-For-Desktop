@@ -6,7 +6,7 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "gen-icon": "node tools/gen-icon.js",
+    "gen-icon": "electron tools/gen-icon.js",
     "dist": "electron-builder --win nsis"
   },
   "license": "MIT",
@@ -21,10 +21,11 @@
     "files": [
       "src/**/*",
       "public/**/*",
+      "assets/**/*",
       "package.json"
     ],
     "win": {
-      "icon": "assets/icon.png",
+      "icon": "assets/icon.ico",
       "target": "nsis"
     },
     "nsis": {

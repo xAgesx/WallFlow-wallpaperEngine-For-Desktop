@@ -49,7 +49,8 @@ function createLibraryWindow() {
 
 function createTray() {
   const iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
-  const image = nativeImage.createFromPath(iconPath);
+  // tray slots are 16-32px; downscale the 512px logo so it renders crisply
+  const image = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 });
   tray = new Tray(image);
   tray.setToolTip('WallFlow');
   const menu = Menu.buildFromTemplate([
