@@ -54,6 +54,12 @@
     toasts: $('#toasts'),
     modal: $('#modal'),
     modalInput: $('#modal-input'),
+    confirm: $('#confirm'),
+    confirmTitle: $('#confirm-title'),
+    confirmMsg: $('#confirm-msg'),
+    confirmOk: $('#confirm-ok'),
+    confirmCancel: $('#confirm-cancel'),
+    welcome: $('#welcome'),
   };
 
   const ICONS = {
@@ -83,6 +89,35 @@
       clearTimeout(t);
       t = setTimeout(() => fn(...args), ms);
     };
+  }
+
+  /* Reusable confirmation dialog — resolves true (confirm) or false (cancel). */
+  function confirmDialog({ title, message, confirmLabel = 'Confirm', danger = false }) {
+    return new Promise((resolve) => {
+      els.confirmTitle.textContent = title;
+      els.confirmMsg.textContent = message;
+      els.confirmOk.textContent = confirmLabel;
+      els.confirmOk.classList.toggle('danger-btn', danger);
+      els.confirmOk.classList.toggle('primary-btn', !danger);
+      els.confirm.hidden = false;
+      const done = (val) => {
+        els.confirm.hidden = true;
+        els.confirmOk.removeEventListener('click', onOk);
+        els.confirmCancel.removeEventListener('click', onCancel);
+        els.confirm.removeEventListener('click', onBg);
+        document.removeEventListener('keydown', onKey, true);
+        resolve(val);
+      };
+      const onOk = () => done(true);
+      const onCancel = () => done(false);
+      const onBg = (e) => { if (e.target === els.confirm) done(false); };
+      const onKey = (e) => { if (e.key === 'Escape') done(false); };
+      els.confirmOk.addEventListener('click', onOk);
+      els.confirmCancel.addEventListener('click', onCancel);
+      els.confirm.addEventListener('click', onBg);
+      document.addEventListener('keydown', onKey, true);
+      setTimeout(() => els.confirmOk.focus(), 50);
+    });
   }
 
   function isLocal(item) {
@@ -175,7 +210,28 @@
     setupObserver();
     populateFilters();
     await loadFeed(true);
+    maybeShowWelcome();
   }
+
+  /* ---------------- first-run welcome ---------------- */
+
+  function maybeShowWelcome() {
+    if (state.settings && state.settings.hasSeenWelcome) return;
+    els.welcome.hidden = false;
+  }
+
+  async function dismissWelcome(goSettings) {
+    els.welcome.hidden = true;
+    try {
+      state.settings = await api.invoke('settings:set', { hasSeenWelcome: true });
+    } catch {
+      /* non-fatal: worst case it shows again next launch */
+    }
+    if (goSettings) setView('settings');
+  }
+
+  $('#welcome-start').addEventListener('click', () => dismissWelcome(false));
+  $('#welcome-settings').addEventListener('click', () => dismissWelcome(true));
 
   function updateCounts() {
     $('#count-fav').textContent = state.favorites.length || '';
@@ -257,9 +313,11 @@
     const foryou = state.view === 'foryou';
     const src = currentSourceDef();
 
-    els.search.disabled = !feed;
+    els.search.disabled = false;
     els.search.placeholder = !feed
-      ? 'Switch to For You or All to search'
+      ? state.view === 'favorites'
+        ? 'Search favorites…'
+        : 'Search my wallpapers…'
       : foryou && state.source === 'all' && !state.query
         ? 'Search every wallpaper…'
         : state.source === 'all'
@@ -340,8 +398,10 @@
       return;
     }
     if (view === 'foryou' || view === 'all') loadFeed(true);
-    else if (view === 'favorites') renderCollection(state.favorites, 'No favorites yet', 'Tap the heart on any wallpaper to keep it here.');
-    else if (view === 'local') renderCollection(state.library, 'No wallpapers downloaded', 'Upload files or hit Download on any wallpaper — they stay on your machine.');
+    else if (view === 'favorites')
+      renderCollection(state.favorites, 'No favorites yet', 'Tap the heart on any wallpaper to keep it here.', { label: 'Browse wallpapers', act: 'browse' });
+    else if (view === 'local')
+      renderCollection(state.library, 'No wallpapers downloaded', 'Upload files or hit Download on any wallpaper — they stay on your machine.', { label: 'Upload files', act: 'upload' });
   }
 
   async function loadFeed(reset = true) {
@@ -402,6 +462,31 @@
     els.banner.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0"><path d="M12 3l2.2 5.2L19.5 9l-4 3.7 1.1 5.5L12 15.4 7.4 18.2l1.1-5.5-4-3.7 5.3-.8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>${escapeHtml(text)}</span>`;
   }
 
+  function filtersActive() {
+    return !!(
+      state.query ||
+      state.source !== 'all' ||
+      state.orientation !== 'all' ||
+      state.category !== 'all' ||
+      state.minWidth !== '0'
+    );
+  }
+
+  function clearFilters() {
+    state.query = '';
+    els.search.value = '';
+    els.searchClear.hidden = true;
+    state.source = 'all';
+    state.orientation = 'all';
+    state.category = 'all';
+    state.minWidth = '0';
+    state.sort = 'relevance';
+    els.fCategory.dataset.for = '';
+    renderSourceSelect();
+    populateFilters();
+    if (isFeedView()) loadFeed(true);
+  }
+
   function setStateMsg(kind, detail) {
     if (!kind) {
       els.stateMsg.hidden = true;
@@ -415,21 +500,50 @@
         state.settings && state.settings.animatedOnly
           ? ' Animated-only filter is on — switch it off in the toolbar to include still images.'
           : '';
-      const msg =
-        state.view === 'foryou' && !state.favorites.length
-          ? '<div class="big">Your feed is warming up</div><div class="hint">Favorite a few wallpapers and recommendations will get personal — showing popular picks meanwhile</div>'
-          : `<div class="big">Nothing found</div><div class="hint">Try a different search or filter.${animHint}</div>`;
-      els.stateMsg.innerHTML = msg;
+      let title;
+      let hint;
+      if (state.view === 'foryou' && !state.favorites.length) {
+        title = 'Your feed is warming up';
+        hint = 'Favorite a few wallpapers and recommendations will get personal — showing popular picks meanwhile';
+      } else {
+        const q = state.query ? ` for &ldquo;${escapeHtml(state.query)}&rdquo;` : '';
+        title = `No wallpapers found${q}`;
+        hint = `Try a different search or filter.${animHint}`;
+      }
+      const actions = filtersActive()
+        ? '<div class="state-actions"><button class="ghost-btn" data-state-act="clear">Clear filters</button></div>'
+        : '';
+      els.stateMsg.innerHTML = `<div class="big">${title}</div><div class="hint">${hint}</div>${actions}`;
     } else if (kind === 'error') {
-      els.stateMsg.innerHTML = `<div class="big">Couldn’t reach this source</div><div class="hint">${(detail || '').slice(0, 160)}</div>`;
+      els.stateMsg.innerHTML =
+        '<div class="big">Couldn&rsquo;t reach this source</div>' +
+        `<div class="hint">${escapeHtml(String(detail || '').slice(0, 160))}</div>` +
+        '<div class="state-actions"><button class="primary-btn" data-state-act="retry">Try again</button></div>';
     }
   }
 
-  function renderCollection(items, emptyTitle, emptyHint) {
+  // actions rendered inside the empty/error state messages
+  els.stateMsg.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-state-act]');
+    if (!btn) return;
+    const act = btn.dataset.stateAct;
+    if (act === 'retry') loadFeed(true);
+    else if (act === 'clear') clearFilters();
+    else if (act === 'clearsearch') {
+      els.search.value = '';
+      runSearch();
+    } else if (act === 'browse') setView('foryou');
+    else if (act === 'upload') doUpload();
+  });
+
+  function renderCollection(items, emptyTitle, emptyHint, emptyAction) {
     els.grid.innerHTML = '';
     if (!items.length) {
       els.stateMsg.hidden = false;
-      els.stateMsg.innerHTML = `<div class="big">${emptyTitle}</div><div class="hint">${emptyHint}</div>`;
+      const btn = emptyAction
+        ? `<div class="state-actions"><button class="ghost-btn" data-state-act="${escapeHtml(emptyAction.act)}">${escapeHtml(emptyAction.label)}</button></div>`
+        : '';
+      els.stateMsg.innerHTML = `<div class="big">${emptyTitle}</div><div class="hint">${emptyHint}</div>${btn}`;
       return;
     }
     els.stateMsg.hidden = true;
@@ -563,6 +677,13 @@
   }
 
   async function doRemove(item) {
+    const confirmed = await confirmDialog({
+      title: 'Remove wallpaper?',
+      message: `“${item.title || 'Untitled'}” will be deleted from My Wallpapers. This cannot be undone.`,
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!confirmed) return;
     state.library = await api.invoke('library:remove', item.id);
     state.favorites = await api.invoke('favorites:list');
     updateCounts();
@@ -663,7 +784,8 @@
 
   function filterCollection() {
     const q = state.query.toLowerCase();
-    const base = state.view === 'favorites' ? state.favorites : state.library;
+    const isFav = state.view === 'favorites';
+    const base = isFav ? state.favorites : state.library;
     const filtered = q
       ? base.filter(
           (i) =>
@@ -672,12 +794,23 @@
             (i.source || '').toLowerCase().includes(q)
         )
       : base;
+    // searching within a collection but nothing matched — say so specifically
+    if (!filtered.length && q) {
+      els.grid.innerHTML = '';
+      els.stateMsg.hidden = false;
+      els.stateMsg.innerHTML =
+        `<div class="big">No matches for &ldquo;${escapeHtml(state.query)}&rdquo;</div>` +
+        `<div class="hint">Nothing in ${isFav ? 'your favorites' : 'My Wallpapers'} matches that search.</div>` +
+        '<div class="state-actions"><button class="ghost-btn" data-state-act="clearsearch">Clear search</button></div>';
+      return;
+    }
     renderCollection(
       filtered,
-      state.view === 'favorites' ? 'No favorites yet' : 'No wallpapers downloaded',
-      state.view === 'favorites'
+      isFav ? 'No favorites yet' : 'No wallpapers downloaded',
+      isFav
         ? 'Tap the heart on any wallpaper to keep it here.'
-        : 'Upload files or hit Download on any wallpaper.'
+        : 'Upload files or hit Download on any wallpaper.',
+      isFav ? { label: 'Browse wallpapers', act: 'browse' } : { label: 'Upload files', act: 'upload' }
     );
   }
 
@@ -757,7 +890,7 @@
 
   /* ---------------- upload / url ---------------- */
 
-  $('#btn-upload').addEventListener('click', async () => {
+  async function doUpload() {
     const added = await api.invoke('library:upload');
     if (added && added.length) {
       state.library = await api.invoke('library:list');
@@ -766,7 +899,9 @@
       api.invoke('app:playlistRefresh');
       setView('local');
     }
-  });
+  }
+
+  $('#btn-upload').addEventListener('click', doUpload);
 
   function openModal() {
     els.modal.hidden = false;
@@ -862,6 +997,21 @@
         else if (input.type === 'range') v = Number(input.value);
         else v = input.value;
         if (key === 'playlistInterval' || key === 'clockSize') v = Number(v);
+
+        // enabling NSFW removes every content limit — confirm before applying
+        if (key === 'nsfwMode' && v) {
+          const yes = await confirmDialog({
+            title: 'Turn on NSFW mode?',
+            message: 'This removes every content limit, so explicit wallpapers will appear in your feed. Continue only if you are of legal age and in a private space.',
+            confirmLabel: 'Turn on NSFW',
+            danger: true,
+          });
+          if (!yes) {
+            input.checked = false;
+            return;
+          }
+        }
+
         state.settings = await api.invoke('settings:set', { [key]: v });
         updateValLabel(key, v);
         applyChrome();
@@ -889,6 +1039,13 @@
   }
 
   $('#btn-stop-wallpaper').addEventListener('click', async () => {
+    const yes = await confirmDialog({
+      title: 'Stop wallpaper?',
+      message: 'Your current wallpaper will be removed and your desktop will go back to the default background.',
+      confirmLabel: 'Stop',
+      danger: true,
+    });
+    if (!yes) return;
     await api.invoke('wallpaper:stop');
     toast('Wallpaper stopped — desktop restored');
   });

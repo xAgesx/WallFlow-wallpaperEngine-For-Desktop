@@ -344,7 +344,7 @@
               <label class="switch"><input type="checkbox" data-setting="nsfwMode" /><span></span></label>
             </div>
             <div class="set-row">
-              <label>API keys<br /><span class="hint-inline">Keys are provided by the app's environment, not entered here — sources that need one activate automatically</span></label>
+              <label>API keys<br /><span class="hint-inline">Keys are never entered here — sources that need one are supplied by your environment or the key proxy and activate automatically</span></label>
             </div>
           </div>
 
@@ -431,6 +431,44 @@
       <div class="modal-actions">
         <button id="modal-cancel" class="ghost-btn subtle">Cancel</button>
         <button id="modal-ok" class="primary-btn">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm" hidden>
+    <div class="confirm-card">
+      <h3 id="confirm-title">Are you sure?</h3>
+      <p id="confirm-msg"></p>
+      <div class="modal-actions">
+        <button id="confirm-cancel" class="ghost-btn subtle">Cancel</button>
+        <button id="confirm-ok" class="primary-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="welcome" hidden>
+    <div class="welcome-card">
+      <div class="welcome-logo">
+        <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true">
+          <defs><linearGradient id="wlg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#a78bfa"/>
+          </linearGradient></defs>
+          <circle cx="32" cy="32" r="30" fill="url(#wlg)"/>
+          <circle cx="32" cy="32" r="19" fill="none" stroke="#fff" stroke-width="4" opacity=".9"/>
+          <circle cx="32" cy="32" r="7" fill="#fff"/>
+        </svg>
+      </div>
+      <h2>Welcome to WallFlow</h2>
+      <p class="welcome-lead">Animated wallpapers for your desktop, pulled from across the web. Here is the quick tour:</p>
+      <ol class="welcome-steps">
+        <li><span class="step-n">1</span><div><b>Search &amp; browse</b><span>Use the search bar and filters to find wallpapers from every source at once.</span></div></li>
+        <li><span class="step-n">2</span><div><b>Click to preview</b><span>Click any wallpaper to try it on your desktop instantly, no commitment.</span></div></li>
+        <li><span class="step-n">3</span><div><b>Download to keep</b><span>Hit Download to save it to My Wallpapers, then Set it as your wallpaper.</span></div></li>
+        <li><span class="step-n">4</span><div><b>Meet your companion</b><span>Toggle the paw button on your desktop to wake a cat, dog or blob that follows your cursor.</span></div></li>
+      </ol>
+      <div class="welcome-actions">
+        <button id="welcome-settings" class="ghost-btn subtle">Open Settings</button>
+        <button id="welcome-start" class="primary-btn">Get started</button>
       </div>
     </div>
   </div>

@@ -53,6 +53,7 @@ const DEFAULT_SETTINGS = {
   animatedOnly: true,
   disabledSources: [],
   currentWallpaper: null,
+  hasSeenWelcome: false,
 };
 
 function file(name) {
