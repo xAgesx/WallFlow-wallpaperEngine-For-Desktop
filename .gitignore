@@ -22,3 +22,5 @@ docs/
 
 # Build output
 dist/
+
+.vercel
