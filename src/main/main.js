@@ -234,7 +234,12 @@ if (!gotLock) {
   });
 
   app.whenReady().then(async () => {
-    app.setAppUserModelId('com.wallflow.app');
+    // Deliberately NOT calling app.setAppUserModelId() here. Windows resolves
+    // the taskbar button icon through the AppUserModelID, and nothing registers
+    // an icon for com.wallflow.app (no Start Menu shortcut carries it when
+    // running from source), so the taskbar rendered a blank page instead of the
+    // logo. With no custom ID Windows falls back to the window icon, which
+    // works for the title bar, taskbar and Alt+Tab alike.
     createTray();
     libraryWindow = createLibraryWindow();
     initIpc();
