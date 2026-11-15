@@ -1050,11 +1050,6 @@
     toast('Wallpaper stopped — desktop restored');
   });
 
-  /* ---------------- window controls ---------------- */
-
-  $('#btn-min').addEventListener('click', () => api.invoke('app:minimize'));
-  $('#btn-close').addEventListener('click', () => api.invoke('app:close'));
-
   /* ---------------- go ---------------- */
 
   boot().catch((e) => {
