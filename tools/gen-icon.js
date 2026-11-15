@@ -1,8 +1,11 @@
 /* Rasterize the official logo (public/WallFlow-icon.svg) into the binary icons
  * the app needs at runtime and for packaging:
  *
- *   assets/icon.png  - 512x512, used by the window, taskbar and tray
- *   assets/icon.ico  - 256x256, used by electron-builder for the exe/installer
+ *   assets/icon.png  - 512x512, used by the tray
+ *   assets/icon.ico  - multi-size (16/24/32/48/64/128/256), used by the
+ *                      window + taskbar (Windows needs a real ICO with a
+ *                      32px entry or the taskbar shows a blank icon) and
+ *                      by electron-builder for the exe/installer.
  *
  * Uses the bundled Electron binary to render (canvas draw of the SVG), so no
  * extra native dependencies are needed. Run with: npm run gen-icon
@@ -13,26 +16,33 @@ const os = require('os');
 const path = require('path');
 
 const SIZE = 512;
-const ICO_SIZE = 256;
+const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 
 // stay clear of the running app's profile
 app.setPath('userData', path.join(os.tmpdir(), 'wallflow-genicon'));
 app.disableHardwareAcceleration();
 
-/* Single-entry ICO wrapping a PNG payload (supported since Vista). The
- * width/height byte is 0 because 256 is encoded as 0 in the entry header. */
-function pngToIco(png) {
+/* Multi-entry ICO wrapping PNG payloads (supported since Vista). The
+ * width/height byte is 0 when that dimension is 256. */
+function pngToIco(entries) {
   const header = Buffer.alloc(6);
   header.writeUInt16LE(1, 2); // type: icon
-  header.writeUInt16LE(1, 4); // entry count
-  const entry = Buffer.alloc(16);
-  entry[0] = 0; // width (0 = 256)
-  entry[1] = 0; // height (0 = 256)
-  entry.writeUInt16LE(1, 4); // planes
-  entry.writeUInt16LE(32, 6); // bit count
-  entry.writeUInt32LE(png.length, 8);
-  entry.writeUInt32LE(header.length + entry.length, 12); // data offset
-  return Buffer.concat([header, entry, png]);
+  header.writeUInt16LE(entries.length, 4); // entry count
+  const dirSize = header.length + entries.length * 16;
+  let offset = dirSize;
+  const dirs = [];
+  for (const e of entries) {
+    const d = Buffer.alloc(16);
+    d[0] = e.size >= 256 ? 0 : e.size; // width
+    d[1] = e.size >= 256 ? 0 : e.size; // height
+    d.writeUInt16LE(1, 4); // planes
+    d.writeUInt16LE(32, 6); // bit count
+    d.writeUInt32LE(e.png.length, 8);
+    d.writeUInt32LE(offset, 12); // data offset
+    dirs.push(d);
+    offset += e.png.length;
+  }
+  return Buffer.concat([header, ...dirs, ...entries.map((e) => e.png)]);
 }
 
 const toBuf = (dataUrl) => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
@@ -74,7 +84,9 @@ app.whenReady()
             c.getContext('2d').drawImage(img, 0, 0, s, s);
             return c.toDataURL('image/png');
           };
-          return JSON.stringify({ big: draw(${SIZE}), ico: draw(${ICO_SIZE}) });
+          const ico = {};
+          for (const s of ${JSON.stringify(ICO_SIZES)}) ico[s] = draw(s);
+          return JSON.stringify({ big: draw(${SIZE}), ico });
         })()`,
         true
       )
@@ -83,9 +95,10 @@ app.whenReady()
     const assetsDir = path.join(__dirname, '..', 'assets');
     fs.mkdirSync(assetsDir, { recursive: true });
     fs.writeFileSync(path.join(assetsDir, 'icon.png'), toBuf(out.big));
-    fs.writeFileSync(path.join(assetsDir, 'icon.ico'), pngToIco(toBuf(out.ico)));
+    const entries = ICO_SIZES.map((s) => ({ size: s, png: toBuf(out.ico[s]) }));
+    fs.writeFileSync(path.join(assetsDir, 'icon.ico'), pngToIco(entries));
 
-    console.log('icon written: assets/icon.png (512), assets/icon.ico (256)');
+    console.log('icon written: assets/icon.png (512), assets/icon.ico (multi-size)');
     app.quit();
   })
   .catch((e) => {

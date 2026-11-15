@@ -24,7 +24,7 @@ function createLibraryWindow() {
     backgroundColor: '#0a0d13',
     autoHideMenuBar: true,
     title: 'WallFlow',
-    icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
       contextIsolation: true,
@@ -35,6 +35,9 @@ function createLibraryWindow() {
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, '..', 'library', 'index.html'));
   win.once('ready-to-show', () => {
+    // setIcon after load forces Windows to refresh the taskbar's big icon
+    // (the constructor icon alone can leave a blank taskbar button)
+    try { win.setIcon(path.join(__dirname, '..', '..', 'assets', 'icon.ico')); } catch {}
     win.show();
     if (getSettings().minimizeOnStart) win.hide();
   });
