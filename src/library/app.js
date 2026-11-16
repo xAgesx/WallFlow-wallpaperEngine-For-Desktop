@@ -26,6 +26,12 @@
     seen: new Set(),
   };
 
+  // bumped every time the feed grid is reset, so a response that was already
+  // in flight (e.g. from before a source was toggled off) can never
+  // repopulate a grid that a newer load has taken ownership of
+  let feedGen = 0;
+  let feedInFlight = null;
+
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
@@ -407,6 +413,7 @@
   async function loadFeed(reset = true) {
     if (!isFeedView()) return;
     if (reset) {
+      feedGen++;
       state.page = 0;
       state.items = [];
       state.seen = new Set();
@@ -414,47 +421,57 @@
       els.grid.innerHTML = '';
       setStateMsg('loading');
       els.banner.hidden = true;
+      // wait out any fetch still in flight — it drops its own stale result now,
+      // and starting the new load before it settles would just bail on
+      // state.loading and leave the grid empty until the stale response lands
+      if (feedInFlight) await feedInFlight.catch(() => {});
     }
     await fetchPage();
   }
 
   async function fetchPage() {
     if (state.loading || !isFeedView()) return;
+    const gen = feedGen;
     state.loading = true;
     els.loader.hidden = false;
-    try {
-      const res = await api.invoke('app:search', {
-        source: searchSourceParam(),
-        query: state.query,
-        orientation: state.orientation,
-        category: state.category,
-        minWidth: Number(state.minWidth) || 0,
-        sort: state.sort,
-        nsfw: !!(state.settings && state.settings.nsfwMode && state.nsfw),
-        animatedOnly: !!(state.settings && state.settings.animatedOnly),
-        page: state.page,
-        pageSize: state.view === 'all' && state.source === 'all' ? 24 : 40,
-      });
-      if (res.error) throw new Error(res.error);
-      if (res.reason) state.reason = res.reason;
-      const fresh = res.items.filter((i) => !state.seen.has(i.id));
-      fresh.forEach((i) => state.seen.add(i.id));
-      state.items.push(...fresh);
-      state.hasMore = !!res.hasMore;
-      state.page += 1;
+    const task = (async () => {
+      try {
+        const res = await api.invoke('app:search', {
+          source: searchSourceParam(),
+          query: state.query,
+          orientation: state.orientation,
+          category: state.category,
+          minWidth: Number(state.minWidth) || 0,
+          sort: state.sort,
+          nsfw: !!(state.settings && state.settings.nsfwMode && state.nsfw),
+          animatedOnly: !!(state.settings && state.settings.animatedOnly),
+          page: state.page,
+          pageSize: state.view === 'all' && state.source === 'all' ? 24 : 40,
+        });
+        if (gen !== feedGen) return; // a newer load owns the grid now
+        if (res.error) throw new Error(res.error);
+        if (res.reason) state.reason = res.reason;
+        const fresh = res.items.filter((i) => !state.seen.has(i.id));
+        fresh.forEach((i) => state.seen.add(i.id));
+        state.items.push(...fresh);
+        state.hasMore = !!res.hasMore;
+        state.page += 1;
 
-      if (state.view === 'foryou' && state.reason) showBanner(state.reason);
-      updateCounts();
+        if (state.view === 'foryou' && state.reason) showBanner(state.reason);
+        updateCounts();
 
-      if (!state.items.length && !state.hasMore) setStateMsg('empty');
-      else if (state.items.length) setStateMsg(null);
-      renderGrid(fresh, state.page > 1);
-    } catch (e) {
-      setStateMsg('error', e.message);
-    } finally {
-      state.loading = false;
-      els.loader.hidden = true;
-    }
+        if (!state.items.length && !state.hasMore) setStateMsg('empty');
+        else if (state.items.length) setStateMsg(null);
+        renderGrid(fresh, state.page > 1);
+      } catch (e) {
+        if (gen === feedGen) setStateMsg('error', e.message);
+      } finally {
+        state.loading = false;
+        els.loader.hidden = true;
+      }
+    })();
+    feedInFlight = task;
+    await task;
   }
 
   function showBanner(text) {

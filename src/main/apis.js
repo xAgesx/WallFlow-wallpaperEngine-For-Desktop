@@ -784,7 +784,9 @@ function mapWikiVideo(p, source = 'wikimedia') {
     source,
     type: 'video',
     title,
-    author: 'Wikimedia Commons',
+    // Commons clips pulled in by other sources (motion) must not read as the
+    // Wikimedia source itself — users disable that source by name
+    author: source === 'wikimedia' ? 'Wikimedia Commons' : 'Commons',
     pageUrl: `https://commons.wikimedia.org/?curid=${p.pageid}`,
     thumb: info.thumburl || null,
     full: info.url,
@@ -1613,7 +1615,9 @@ async function fetchGif(serverPage, ctx) {
         source: 'gif',
         type: 'image',
         title,
-        author: 'Wikimedia Commons',
+        // hosted on Commons, but this is the GIF source — showing "Wikimedia"
+        // here makes the disabled Wikimedia source look like it still leaks
+        author: 'Commons',
         pageUrl: `https://commons.wikimedia.org/?curid=${p.pageid}`,
         thumb,
         full: info.url,
