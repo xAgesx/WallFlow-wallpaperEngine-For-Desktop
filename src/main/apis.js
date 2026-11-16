@@ -123,16 +123,6 @@ const SOURCES = [
     sorts: ['relevance'],
   },
   {
-    id: 'gif',
-    name: 'Animated GIFs',
-    description: 'Looping GIF wallpapers',
-    types: ['image'],
-    animated: true,
-    searchable: true,
-    categories: ['nature', 'space', 'ocean', 'fire', 'night', 'abstract'],
-    sorts: ['relevance'],
-  },
-  {
     id: 'anime',
     name: 'Anime',
     description: 'Safebooru scenery & art',
@@ -1537,24 +1527,6 @@ async function fetchMotion(serverPage, ctx) {
     /* stock providers optional */
   }
 
-  // Wikimedia video pages
-  try {
-    const core = q || 'nature';
-    const url =
-      'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&' +
-      'generator=search&gsrnamespace=6&gsrlimit=30&' +
-      `gsroffset=${serverPage * 30}&` +
-      `gsrsearch=${encodeURIComponent(`filetype:video ${core} ${wikiNegations(q, wikiBudget('filetype:video ', core))}`)}&` +
-      'prop=imageinfo&iiprop=url|size|mime&iiurlwidth=640';
-    const json = await getWikiJson(url);
-    const pages = (json.query && json.query.pages) || {};
-    const wiki = Object.values(pages).map((p) => mapWikiVideo(p, 'motion')).filter(Boolean);
-    out.push(...wiki);
-    if (wiki.length === 30) hasMore = true;
-  } catch {
-    /* wiki optional */
-  }
-
   // curated demo clips last — they pad the feed after real content, never lead it
   if (serverPage === 0 && out.length < 8) {
     for (const v of CURATED_VIDEOS) {
@@ -1579,59 +1551,6 @@ async function fetchMotion(serverPage, ctx) {
   return { items: out, hasMore };
 }
 
-/* ---------------- Animated GIFs (Wikimedia Commons) ---------------- */
-
-const GIF_DEFAULT_TERMS = ['sky', 'ocean', 'fire', 'water', 'night', 'clouds', 'stars', 'rain', 'forest', 'sunset'];
-
-async function fetchGif(serverPage, ctx) {
-  const { query, filters, meta } = ctx;
-  const cat = filters.category && filters.category !== 'all' ? filters.category : '';
-  const given = [query, cat].filter(Boolean).join(' ').trim();
-  // no query: bias the session toward one scenic term instead of paging through diagrams
-  if (!given && !meta.gifTerm) {
-    meta.gifTerm = GIF_DEFAULT_TERMS[Math.floor(Math.random() * GIF_DEFAULT_TERMS.length)];
-  }
-  const term = given || meta.gifTerm;
-  const prefix = 'incategory:"Animated GIF files" ';
-  const url =
-    'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&' +
-    'generator=search&gsrnamespace=6&gsrlimit=40&' +
-    `gsroffset=${serverPage * 40}&` +
-    `gsrsearch=${encodeURIComponent(`${prefix}${term} ${wikiNegations(term, wikiBudget(prefix, term))}`)}&` +
-    'prop=imageinfo&iiprop=url|size|mime&iiurlwidth=480';
-  const json = await getWikiJson(url);
-  const pages = (json.query && json.query.pages) || {};
-  const items = Object.values(pages)
-    .map((p) => {
-      const info = (p.imageinfo && p.imageinfo[0]) || {};
-      if (!info.url || !/gif/i.test(info.mime || '')) return null;
-      if (info.size && info.size > 30 * 1024 * 1024) return null; // keep downloads sane
-      if (info.width && info.width < 320) return null;
-      const title = (p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
-      if (wikiTitleIsJunk(title)) return null;
-      const thumb = String(info.thumburl || info.url).replace(/\/\d+px-/, '/480px-');
-      return {
-        id: `gif:${p.pageid}`,
-        source: 'gif',
-        type: 'image',
-        title,
-        // hosted on Commons, but this is the GIF source — showing "Wikimedia"
-        // here makes the disabled Wikimedia source look like it still leaks
-        author: 'Commons',
-        pageUrl: `https://commons.wikimedia.org/?curid=${p.pageid}`,
-        thumb,
-        full: info.url,
-        width: info.width || 0,
-        height: info.height || 0,
-        category: 'gif',
-        tags: [term],
-        animated: true,
-      };
-    })
-    .filter(Boolean);
-  return { items, hasMore: !!(json.continue && json.continue.gsroffset) || items.length === 40 };
-}
-
 /* ---------------- router ---------------- */
 
 const FETCHERS = {
@@ -1647,7 +1566,6 @@ const FETCHERS = {
   unsplash: fetchUnsplash,
   pixabay: fetchPixabay,
   tenor: fetchTenor,
-  gif: fetchGif,
   motion: fetchMotion,
 };
 
@@ -1806,7 +1724,7 @@ function pickQueries(favorites) {
 }
 
 const STATIC_FILLERS = ['wallhaven', 'wikimedia', 'nasa', 'artic'];
-const ANIMATED_FILLERS = ['motion', 'gif', 'tenor', 'nasa', 'wikimedia'];
+const ANIMATED_FILLERS = ['motion', 'tenor', 'nasa', 'wikimedia'];
 
 function pickSources(favorites, animatedOnly) {
   const counts = new Map();
