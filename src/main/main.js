@@ -1,6 +1,6 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, screen } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawnPsScript } = require('./ps');
 const { getSettings, setSettings } = require('./store');
 const { search, searchAll, recommend, listSources, proxyActive, SOURCES, CONTENTS, isAnimatedItem } = require('./apis');
 const { initLibrary } = require('./library');
@@ -93,15 +93,13 @@ function syncTray() {
 }
 
 function setStartWithWindows(enabled) {
-  const ps = path.join(__dirname, 'autostart.ps1');
-  spawn('powershell.exe', [
-    '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-File', ps,
+  const script = path.join(__dirname, 'autostart.ps1');
+  spawnPsScript(script, [
     '-Enable', enabled ? '1' : '0',
     '-Exe', process.execPath,
     '-AppDir', app.getAppPath(),
     '-Dev', app.isPackaged ? '0' : '1',
-  ], { windowsHide: true });
+  ]);
 }
 
 function providerKeys() {

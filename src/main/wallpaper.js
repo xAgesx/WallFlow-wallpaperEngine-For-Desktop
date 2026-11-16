@@ -1,6 +1,6 @@
 const { BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawnPsScript } = require('./ps');
 const { getSettings, setSettings } = require('./store');
 
 function hwndToInt(buffer) {
@@ -12,12 +12,6 @@ function runParentScript(hwnd, bounds, stable) {
   return new Promise((resolve) => {
     const script = path.join(__dirname, 'attach.ps1');
     const args = [
-      '-NoProfile',
-      '-NonInteractive',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
-      script,
       '-Hwnd',
       String(hwnd),
       '-X',
@@ -31,7 +25,9 @@ function runParentScript(hwnd, bounds, stable) {
     ];
     // retry mode: skip the shell's wallpaper layer and use Progman only
     if (stable) args.push('-Stable');
-    const ps = spawn('powershell.exe', args, { windowsHide: true });
+    // spawnPsScript reads the .ps1 via fs (works inside app.asar) and re-emits
+    // it to a temp file outside the archive before handing it to PowerShell
+    const ps = spawnPsScript(script, args);
     let out = '';
     let err = '';
     let done = false;
@@ -621,11 +617,7 @@ class WallpaperEngine {
       return;
     }
     if (this.sensorProc) return;
-    const ps = spawn(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'sensors.ps1')],
-      { windowsHide: true }
-    );
+    const ps = spawnPsScript(path.join(__dirname, 'sensors.ps1'));
     this.sensorBuf = '';
     ps.stdout.on('data', (d) => this.onSensorData(d));
     ps.stderr.on('data', () => { /* ignore */ });
