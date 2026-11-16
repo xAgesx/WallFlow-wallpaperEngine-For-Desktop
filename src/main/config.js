@@ -8,5 +8,5 @@
  * The WALLFLOW_PROXY_URL environment variable overrides this value.
  */
 module.exports = {
-  PROXY_URL: '', // e.g. 'https://wallflow-proxy.vercel.app/api/proxy'
+  PROXY_URL: 'https://wallflow-proxy.vercel.app/api/proxy'
 };

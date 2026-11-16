@@ -1,10 +1,5 @@
-# Files the proxy deploy never needs. Keeps local keys and build output out of
-# the deployment (defense-in-depth on top of .gitignore for CLI deploys).
-.env
-.env.*
-!.env.example
-docs/
-dist/
-tools/
-assets/
-*.log
+# Deploy only the proxy endpoint (and the config that tunes it).
+# Allowlist style: ignore everything in the root, then re-include what ships.
+/*
+!api
+!vercel.json
