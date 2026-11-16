@@ -192,7 +192,10 @@
       const char = s.companionChar || 'cat';
       const pos = s.companionPosition || 'bottom-right';
       companion.setCharacter(char);
-      companionEl.className = s.companion ? `on ${pos} as-${char}` : '';
+      // keep the position and character classes when hiding: dropping them
+      // would snap the absolutely-positioned element back to its static spot
+      // (a corner) while the opacity fade is still running
+      companionEl.className = s.companion ? `on ${pos} as-${char}` : `${pos} as-${char}`;
       companionEl.style.setProperty(
         '--companion-size',
         (Number(s.companionSize) || 200) + 'px'

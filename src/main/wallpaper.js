@@ -241,9 +241,9 @@ class WallpaperEngine {
     const area = display.workArea;
     const size = 44;
     const gap = 16;
-    const parts = (s.togglePosition || 'bottom-left') === 'center'
+    const parts = (s.togglePosition || 'bottom-center') === 'center'
       ? ['center', 'center']
-      : String(s.togglePosition || 'bottom-left').split('-');
+      : String(s.togglePosition || 'bottom-center').split('-');
     const vert = parts[0] || 'bottom';
     const horiz = parts[1] || 'center';
 

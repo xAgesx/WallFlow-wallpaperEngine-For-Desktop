@@ -29,7 +29,7 @@ const DEFAULT_SETTINGS = {
   companionOffsetX: 0,
   companionOffsetY: 0,
   companionOpacity: 100,
-  togglePosition: 'bottom-left',
+  togglePosition: 'bottom-center',
   toggleOffsetX: 0,
   toggleOffsetY: 0,
   transition: 1100,
