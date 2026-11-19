@@ -1,5 +1,9 @@
-# Deploy only the proxy endpoint (and the config that tunes it).
+# Deploy only the API endpoints (and the config that tunes them).
 # Allowlist style: ignore everything in the root, then re-include what ships.
+# package.json + lock are needed so Vercel installs @vercel/blob for the
+# workshop functions.
 /*
 !api
 !vercel.json
+!package.json
+!package-lock.json

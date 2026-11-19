@@ -1,9 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "",
-  "buildCommand": "",
+  "installCommand": "npm install --omit=dev",
   "functions": {
     "api/proxy.js": {
+      "maxDuration": 30
+    },
+    "api/workshop/*.js": {
       "maxDuration": 30
     }
   }
