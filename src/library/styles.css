@@ -716,6 +716,48 @@ body[data-density="compact"] .thumb { aspect-ratio: 4 / 3; }
 #modal-input:focus { border-color: var(--accent); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+/* ---------- workshop share ---------- */
+
+#share {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 12, 0.6);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+}
+#share[hidden] { display: none; }
+.share-field {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.share-field input {
+  width: 100%;
+  margin-top: 5px;
+  padding: 11px 13px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  font-size: 13px;
+  color: inherit;
+}
+.share-field input:focus { outline: none; border-color: var(--accent); }
+.share-nsfw {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 12px 0;
+  cursor: pointer;
+}
+.share-nsfw input { margin-top: 2px; accent-color: var(--accent); }
+.share-status { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.share-status.err { color: #ff7b7b; }
+
 /* ---------- toasts ---------- */
 
 #toasts {

@@ -16,6 +16,8 @@ const ALLOWED_INVOKE = new Set([
   'library:download',
   'library:upload',
   'library:remove',
+  'workshop:submit',
+  'workshop:report',
   'favorites:list',
   'favorites:toggle',
   'wallpaper:apply',

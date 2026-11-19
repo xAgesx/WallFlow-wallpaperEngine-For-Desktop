@@ -21,6 +21,19 @@ function proxyActive() {
   return !!proxyBase();
 }
 
+/* The workshop API (community uploads) runs beside the key proxy. */
+function workshopBase() {
+  const fromEnv = (process.env.WALLFLOW_WORKSHOP_URL || '').trim();
+  if (fromEnv) return fromEnv.replace(/\/+$/, '');
+  const base = proxyBase();
+  if (!base) return '';
+  try {
+    return new URL(base).origin;
+  } catch {
+    return '';
+  }
+}
+
 /* Hosts the proxy is allowed to inject keys for. */
 const PROXY_HOSTS = new Set([
   'wallhaven.cc',
@@ -179,6 +192,16 @@ const SOURCES = [
     requiresKey: 'tenorKey',
     categories: ['nature', 'space', 'ocean', 'fire', 'abstract', 'anime'],
     sorts: ['relevance'],
+  },
+  {
+    id: 'workshop',
+    name: 'Workshop',
+    description: 'Wallpapers shared by WallFlow users',
+    types: ['image', 'video'],
+    animated: true,
+    searchable: true,
+    categories: [],
+    sorts: ['relevance', 'date_added'],
   },
 ];
 
@@ -1551,6 +1574,26 @@ async function fetchMotion(serverPage, ctx) {
   return { items: out, hasMore };
 }
 
+/* ---------------- Workshop (community uploads) ---------------- */
+
+/* Served by the workshop API; approved uploads come back newest-first. */
+async function fetchWorkshop(serverPage, ctx) {
+  const base = workshopBase();
+  if (!base) return { items: [], hasMore: false };
+  const params = new URLSearchParams({
+    page: String(serverPage),
+    pageSize: '40',
+  });
+  if (ctx.query) params.set('q', ctx.query);
+  if (ctx.filters.nsfw) params.set('nsfw', '1');
+  if (ctx.filters.category && ctx.filters.category !== 'all') params.set('tag', ctx.filters.category);
+  const data = await getJson(`${base}/api/workshop/list?${params}`, { timeout: 15000 });
+  return {
+    items: data && Array.isArray(data.items) ? data.items : [],
+    hasMore: !!(data && data.hasMore),
+  };
+}
+
 /* ---------------- router ---------------- */
 
 const FETCHERS = {
@@ -1567,6 +1610,7 @@ const FETCHERS = {
   pixabay: fetchPixabay,
   tenor: fetchTenor,
   motion: fetchMotion,
+  workshop: fetchWorkshop,
 };
 
 function buildCtx(opts) {
@@ -1635,8 +1679,9 @@ async function search(source, opts = {}) {
     const res = await fetcher(serverPage, { ...ctx, meta });
     if (res && Array.isArray(res.items)) {
       if (ctx.filters.animatedOnly) res.items = res.items.filter(isAnimatedItem);
-      // wallpaper-quality gate: no people or clutter while SFW; NSFW is unrestricted
-      if (!ctx.filters.nsfw) res.items = res.items.filter(isWallpaperLike);
+      // wallpaper-quality gate: no people or clutter while SFW; NSFW is
+      // unrestricted. Workshop uploads skip it — an admin approved each one.
+      if (!ctx.filters.nsfw && source !== 'workshop') res.items = res.items.filter(isWallpaperLike);
       res.items = applyCommonFilters(res.items, ctx.filters);
     }
     return res;

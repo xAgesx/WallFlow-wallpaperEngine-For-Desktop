@@ -4,6 +4,7 @@ const { spawnPsScript } = require('./ps');
 const { getSettings, setSettings } = require('./store');
 const { search, searchAll, recommend, listSources, proxyActive, SOURCES, CONTENTS, isAnimatedItem } = require('./apis');
 const { initLibrary } = require('./library');
+const { initWorkshop } = require('./workshop');
 const { WallpaperEngine } = require('./wallpaper');
 const { loadEnv } = require('./env');
 
@@ -242,6 +243,7 @@ if (!gotLock) {
     libraryWindow = createLibraryWindow();
     initIpc();
     initLibrary();
+    initWorkshop();
     engine.init();
     await engine.restoreFromSettings();
     syncTray();

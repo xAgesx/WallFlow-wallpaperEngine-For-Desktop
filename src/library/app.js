@@ -73,6 +73,7 @@
     download: '<svg viewBox="0 0 24 24"><path d="M12 4v10M12 14l-4-4M12 14l4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17v2h14v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
     trash: '<svg viewBox="0 0 24 24"><path d="M6 7h12M10 7V5.5A1.5 1.5 0 0 1 11.5 4h1A1.5 1.5 0 0 1 14 5.5V7M8 7l.7 11a2 2 0 0 0 2 1.9h2.6a2 2 0 0 0 2-1.9L16 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    flag: '<svg viewBox="0 0 24 24"><path d="M6 21V4M6 4h11l-2.4 4L17 12H6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     set: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 20h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
   };
 
@@ -590,6 +591,7 @@
             ${local ? '' : `<button class="act-btn" data-act="download" title="Download">${ICONS.download}</button>`}
             <button class="act-btn" data-act="set" title="Set as wallpaper">${ICONS.set}</button>
             ${local ? `<button class="act-btn" data-act="remove" title="Remove">${ICONS.trash}</button>` : ''}
+            ${item.source === 'workshop' ? `<button class="act-btn report" data-act="report" title="Report">${ICONS.flag}</button>` : ''}
           </div>
         </div>
         <div class="meta">
@@ -734,6 +736,7 @@
     else if (act === 'download') doDownload(item);
     else if (act === 'fav') doFav(item, btn);
     else if (act === 'remove') doRemove(item);
+    else if (act === 'report') doReport(item);
   });
 
   /* ---------------- status / preview bar ---------------- */
@@ -976,6 +979,96 @@
       toast('Could not add URL: ' + String(e.message || e), 'error');
     }
   });
+
+  /* ---------------- workshop share / report ---------------- */
+
+  const share = $('#share');
+  const shareTitle = $('#share-title');
+  const shareTags = $('#share-tags');
+  const shareHandle = $('#share-handle');
+  const shareNsfw = $('#share-nsfw');
+  const shareStatus = $('#share-status');
+  const shareOk = $('#share-ok');
+
+  function setShareStatus(msg, isErr) {
+    shareStatus.hidden = !msg;
+    shareStatus.textContent = msg || '';
+    shareStatus.classList.toggle('err', !!isErr);
+  }
+
+  function openShare() {
+    shareTitle.value = '';
+    shareTags.value = '';
+    shareNsfw.checked = false;
+    shareHandle.value = (state.settings && state.settings.workshopHandle) || '';
+    setShareStatus('');
+    shareOk.disabled = false;
+    share.hidden = false;
+    setTimeout(() => shareTitle.focus(), 50);
+  }
+  function closeShare() {
+    share.hidden = true;
+  }
+
+  $('#btn-share').addEventListener('click', openShare);
+  $('#share-cancel').addEventListener('click', closeShare);
+  share.addEventListener('click', (e) => {
+    if (e.target === share) closeShare();
+  });
+
+  shareOk.addEventListener('click', async () => {
+    const title = shareTitle.value.trim();
+    const handle = shareHandle.value.trim();
+    if (!title) return setShareStatus('Give it a title first', true);
+    if (!handle) return setShareStatus('Pick a handle so people know who shared it', true);
+    const tags = shareTags.value
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    shareOk.disabled = true;
+    setShareStatus('Choose your file in the dialog…');
+    const res = await api.invoke('workshop:submit', {
+      title,
+      handle,
+      tags,
+      nsfw: shareNsfw.checked,
+    });
+    if (res && res.canceled) {
+      setShareStatus('Upload canceled');
+      shareOk.disabled = false;
+      return;
+    }
+    if (!res || res.error) {
+      setShareStatus((res && res.error) || 'Upload failed', true);
+      shareOk.disabled = false;
+      return;
+    }
+    setShareStatus('Uploaded — waiting for review');
+    api.invoke('settings:set', { workshopHandle: handle });
+    setTimeout(() => {
+      closeShare();
+      toast('Submitted to the Workshop — it appears once reviewed', 'ok');
+    }, 700);
+  });
+
+  async function doReport(item) {
+    const sure = await confirmDialog({
+      title: 'Report wallpaper',
+      message: 'This hides the wallpaper for everyone while it gets reviewed.',
+      confirmLabel: 'Report',
+      danger: true,
+    });
+    if (!sure) return;
+    const id = String(item.id).replace(/^ws:/, '');
+    const res = await api.invoke('workshop:report', id);
+    if (!res || res.error) return toast((res && res.error) || 'Report failed', 'error');
+    toast('Reported — thanks for the heads-up', 'ok');
+    state.items = state.items.filter((i) => i.id !== item.id);
+    state.seen.delete(item.id);
+    const card = els.grid.querySelector(`[data-id="${item.id}"]`);
+    if (card) card.remove();
+  }
 
   /* ---------------- settings ---------------- */
 

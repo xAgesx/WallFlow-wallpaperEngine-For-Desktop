@@ -42,6 +42,10 @@
           <svg viewBox="0 0 24 24"><path d="M10 13a4 4 0 0 0 6 .5l2-2a4 4 0 0 0-5.7-5.7l-1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M14 11a4 4 0 0 0-6-.5l-2 2A4 4 0 0 0 11.7 18l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           Add from URL
         </button>
+        <button id="btn-share" class="ghost-btn">
+          <svg viewBox="0 0 24 24"><path d="M12 15V4M12 4L8.5 7.5M12 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Share to Workshop
+        </button>
       </div>
     </aside>
 
@@ -410,6 +414,31 @@
       <div class="modal-actions">
         <button id="modal-cancel" class="ghost-btn subtle">Cancel</button>
         <button id="modal-ok" class="primary-btn">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="share" hidden>
+    <div class="modal-card">
+      <h3>Share to Workshop</h3>
+      <p>Your wallpaper joins the community library for everyone after a quick review.</p>
+      <label class="share-field">Title
+        <input id="share-title" type="text" maxlength="80" placeholder="Neon skyline" autocomplete="off" />
+      </label>
+      <label class="share-field">Tags
+        <input id="share-tags" type="text" maxlength="140" placeholder="city, night, neon (comma separated)" autocomplete="off" />
+      </label>
+      <label class="share-field">Your handle
+        <input id="share-handle" type="text" maxlength="32" placeholder="how you'll appear next to it" autocomplete="off" />
+      </label>
+      <label class="share-nsfw" title="NSFW uploads are hidden from everyone unless they turn NSFW mode on">
+        <input type="checkbox" id="share-nsfw" />
+        <span>This wallpaper is NSFW (mature content)</span>
+      </label>
+      <div class="share-status" id="share-status" hidden></div>
+      <div class="modal-actions">
+        <button id="share-cancel" class="ghost-btn subtle">Cancel</button>
+        <button id="share-ok" class="primary-btn">Choose file &amp; upload</button>
       </div>
     </div>
   </div>
