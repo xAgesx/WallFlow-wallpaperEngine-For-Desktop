@@ -24,6 +24,9 @@ const ALLOWED_INVOKE = new Set([
   'wallpaper:stop',
   'wallpaper:status',
   'wallpaper:discardPreview',
+  'update:status',
+  'update:check',
+  'update:install',
 ]);
 
 const ALLOWED_EVENTS = new Set([
@@ -32,6 +35,7 @@ const ALLOWED_EVENTS = new Set([
   'wallpaper:settings',
   'wallpaper:parallax',
   'wallpaper:event',
+  'update:event',
 ]);
 
 contextBridge.exposeInMainWorld('wallflow', {

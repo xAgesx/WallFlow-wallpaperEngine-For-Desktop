@@ -5,6 +5,7 @@ const { getSettings, setSettings } = require('./store');
 const { search, searchAll, recommend, listSources, proxyActive, SOURCES, CONTENTS, isAnimatedItem } = require('./apis');
 const { initLibrary } = require('./library');
 const { initWorkshop } = require('./workshop');
+const { initUpdates } = require('./updates');
 const { WallpaperEngine } = require('./wallpaper');
 const { loadEnv } = require('./env');
 
@@ -244,6 +245,7 @@ if (!gotLock) {
     initIpc();
     initLibrary();
     initWorkshop();
+    initUpdates(() => libraryWindow);
     engine.init();
     await engine.restoreFromSettings();
     syncTray();

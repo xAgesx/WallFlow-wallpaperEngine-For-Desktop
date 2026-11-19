@@ -1,7 +1,7 @@
 {
   "name": "wallflow",
   "productName": "WallFlow",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight animated wallpaper engine",
   "main": "src/main/main.js",
   "scripts": {
@@ -30,10 +30,17 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "xAgesx",
+      "repo": "WallFlow-wallpaperEngine-For-Desktop"
     }
   },
   "dependencies": {
-    "@vercel/blob": "^2.9.0"
+    "@vercel/blob": "^2.9.0",
+    "electron-updater": "^6.8.11"
   }
 }

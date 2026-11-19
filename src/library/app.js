@@ -214,6 +214,7 @@
     renderSourceToggles();
     updateCounts();
     renderStatus();
+    api.invoke('update:status').then(renderUpdateState).catch(() => {});
     setupObserver();
     populateFilters();
     await loadFeed(true);
@@ -1158,6 +1159,59 @@
     if (!yes) return;
     await api.invoke('wallpaper:stop');
     toast('Wallpaper stopped — desktop restored');
+  });
+
+  /* ---------------- updates ---------------- */
+
+  const UPD_TEXT = {
+    disabled: 'Updates run in the installed app (this is a dev build)',
+    idle: 'WallFlow checks GitHub Releases for updates on startup',
+    checking: 'Checking for updates…',
+    available: (u) => `Update ${u.version} found — downloading…`,
+    downloading: (u) => `Downloading update… ${u.percent || 0}%`,
+    downloaded: (u) => `Update ${u.version} downloaded — ready to install`,
+    uptodate: (u) => `You're up to date (${u.appVersion})`,
+    error: (u) => (u.message ? `Update check failed: ${u.message}` : 'Update check failed'),
+  };
+
+  function renderUpdateState(u) {
+    $('#upd-version').textContent = u.appVersion || '';
+    const text = UPD_TEXT[u.status] || UPD_TEXT.idle;
+    const el = $('#upd-status');
+    el.textContent = typeof text === 'function' ? text(u) : text;
+    el.classList.toggle('error', u.status === 'error');
+    $('#btn-install-update').hidden = u.status !== 'downloaded';
+    $('#btn-check-update').disabled = u.status === 'checking' || u.status === 'downloading';
+  }
+
+  api.on('update:event', (u) => {
+    const wasDownloaded = u.status === 'downloaded';
+    renderUpdateState(u);
+    if (wasDownloaded) toast(`Update ${u.version} downloaded — install it from Settings`, 'ok');
+  });
+
+  $('#btn-check-update').addEventListener('click', async () => {
+    const btn = $('#btn-check-update');
+    btn.disabled = true;
+    try {
+      const u = await api.invoke('update:check');
+      renderUpdateState(u);
+      if (u.status === 'uptodate') toast('WallFlow is up to date', 'ok');
+      else if (u.status === 'downloaded') toast(`Update ${u.version} is ready to install`, 'ok');
+    } catch (e) {
+      toast('Could not check for updates: ' + String(e.message || e), 'error');
+      btn.disabled = false;
+    }
+  });
+
+  $('#btn-install-update').addEventListener('click', async () => {
+    const yes = await confirmDialog({
+      title: 'Restart & install update?',
+      message: 'WallFlow will restart to finish installing the update. Your current wallpaper resumes after the restart.',
+      confirmLabel: 'Restart now',
+    });
+    if (!yes) return;
+    await api.invoke('update:install');
   });
 
   /* ---------------- go ---------------- */
