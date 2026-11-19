@@ -24,7 +24,8 @@ library, a clock overlay, and a little companion that naps on your screen.
 ## Features
 
 - 🖼️ **Wallpapers that move** - GIFs, videos and animated scenes playing live behind your icons (which stay fully clickable, exactly as they should).
-- 🔍 **One search, every source** - Wallhaven, Pexels, Unsplash, Pixabay, NASA, museum collections, anime galleries and GIF boards, all in one library.
+- 🔍 **One search, every source** - Wallhaven, Pexels, Unsplash, Pixabay, NASA, museum collections, anime galleries, GIF boards and community Workshop uploads, all in one library.
+- 🛠️ **Share your own** - upload wallpapers to the Workshop with tags and an NSFW label; everyone gets to browse and use them after a quick review.
 - 🎨 **Make it yours** - dim the image, add a vignette, show a clock & date, mouse parallax, floating particle effects.
 - 🐾 **A desktop companion** - pick a cat, dog or blob. It sleeps, yawns, stretches and reacts as you move your mouse.
 - 🔁 **Playlist rotation** - let wallpapers auto-swap on a timer, with optional shuffle.
@@ -38,6 +39,7 @@ WallFlow pulls wallpapers from third-party sites (Wallhaven, Konachan, booru gal
 - If you turn NSFW mode on, you confirm that you are of legal age to view such material.
 - You are responsible for what appears on your screen, especially in shared spaces or while recording and streaming.
 - All wallpapers are served by the third-party sources themselves. The WallFlow developers have no control over them and cannot be held responsible for their content.
+- Workshop wallpapers are uploaded by other WallFlow users and reviewed before they appear. Use the report flag on any card to hide something that shouldn't be there.
 
 ## Demos
 
@@ -61,6 +63,7 @@ Search, filter and preview wallpapers from every source in one place, then click
 | **Electron** | the app shell (desktop window, tray, wallpaper rendering) |
 | **JavaScript · HTML · CSS** | hand-crafted UI - zero frameworks, lightweight by design |
 | **PowerShell + Win32 APIs** | the trick that pins the wallpaper *behind* your desktop icons |
+| **Vercel** | the API side: the key proxy and the Workshop upload service |
 
 ## License
 
